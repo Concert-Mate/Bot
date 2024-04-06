@@ -7,13 +7,13 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKe
 from telegram.ext import Application, CommandHandler, filters, ConversationHandler, ContextTypes, MessageHandler, \
     CallbackQueryHandler
 
-CITY_REGISTRATION, CITY_REGISTRATION_CALLBACKS, LINK_REGISTRATION = map(
-    chr, range(3))
+REGISTRATION, CITY_REGISTRATION, CITY_REGISTRATION_CALLBACKS, LINK_REGISTRATION, IDLE, STOPPING = map(
+    chr, range(6))
 
 (CONTINUE_ADD_CITIES,
  STOP_ADD_CITIES,
  APPLY_ADD_VARIANT,
- DENY_ADD_VARIANT) = map(chr, range(3, 7))
+ DENY_ADD_VARIANT) = map(chr, range(6, 10))
 
 (
     CITIES,
@@ -62,7 +62,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
                                         f'{"Поскольку вы здесь впервые, нужно пройти процесс регистрации."}',
                                         reply_markup=ReplyKeyboardRemove())
         await update.message.reply_text('Введите город в котором вы желаете посещать концерты')
-        return CITY_REGISTRATION
+        return REGISTRATION
     else:
         return END
 
@@ -101,7 +101,7 @@ async def add_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     return CITY_REGISTRATION
 
 
-async def stop_adding_cities(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def stop_adding_cities(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     if len(context.user_data[CITIES]) == 0:
         await update.message.reply_text('Вы не ввели ни одного города, введите город')
         return CITY_REGISTRATION
@@ -168,8 +168,13 @@ async def deny_city_variant(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     return CITY_REGISTRATION
 
 
-async def end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def stop_nested(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text('Всего хорошего.')
+    return END
+
+
+async def show_secret(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    await update.message.reply_text('Помогите. Меня держат в подвале и заставляют делать фронтенд(бота этого)')
     return END
 
 
@@ -179,7 +184,8 @@ def main() -> None:
     application = Application.builder().token(getenv('BOT_TOKEN')).build()
 
     registration_conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
+        entry_points=[MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex('^Прекратить ввод городов$')),
+                                     add_city)],
         states={
             CITY_REGISTRATION: [
                 MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex('^Прекратить ввод городов$')),
@@ -199,10 +205,27 @@ def main() -> None:
                                stop_adding_links)
             ]
         },
-        fallbacks=[CommandHandler("stop", end)],
+        fallbacks=[CommandHandler("stop", stop_nested)],
+        map_to_parent={
+            END: IDLE,
+            STOPPING: END
+        }
     )
 
-    application.add_handler(registration_conv_handler)
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("start", start)],
+        states={
+            REGISTRATION: [registration_conv_handler,
+
+                           ],
+            IDLE: [CommandHandler('secret', show_secret)],
+
+        },
+        fallbacks=[CommandHandler("stop", stop_nested),
+                   END],
+    )
+
+    application.add_handler(conv_handler)
 
     print('successful launch')
     application.run_polling(allowed_updates=Update.ALL_TYPES)
