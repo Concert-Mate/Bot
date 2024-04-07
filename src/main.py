@@ -205,7 +205,8 @@ def main() -> None:
                                stop_adding_links)
             ]
         },
-        fallbacks=[CommandHandler("stop", stop_nested)],
+        fallbacks=[CommandHandler("stop", stop_nested),
+                   ],
         map_to_parent={
             END: IDLE,
             STOPPING: END
@@ -222,7 +223,7 @@ def main() -> None:
 
         },
         fallbacks=[CommandHandler("stop", stop_nested),
-                   END],
+                   ],
     )
 
     application.add_handler(conv_handler)
