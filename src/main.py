@@ -1,52 +1,13 @@
-import random
 import logging
 from os import getenv
 
 from dotenv import load_dotenv
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram import Update, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, filters, ConversationHandler, ContextTypes, MessageHandler, \
     CallbackQueryHandler
 
-REGISTRATION, CITY_REGISTRATION, CITY_REGISTRATION_CALLBACKS, LINK_REGISTRATION, IDLE, STOPPING, IDLE_CALLBACKS, CHANGE_DATA_CALLBACKS = map(
-    chr, range(8))
-
-(CONTINUE_ADD_CITIES,
- STOP_ADD_CITIES,
- APPLY_ADD_VARIANT,
- DENY_ADD_VARIANT,
- ADD_CITY) = map(chr, range(20, 25))
-
-(
-    CITIES,
-    LINKS,
-    VARIANT,
-    IS_SHOWED_LOOP_MSG,
-    CHANGE_DATA
-) = map(chr, range(120, 125))
-
-END = ConversationHandler.END
-
-keyboard_city = [
-    [
-        'Прекратить ввод городов'
-    ]
-]
-markup_city = ReplyKeyboardMarkup(keyboard_city, one_time_keyboard=True, resize_keyboard=True)
-
-keyboard_links = [
-    [
-        'Прекратить ввод ссылок'
-    ]
-]
-markup_links = ReplyKeyboardMarkup(keyboard_links, one_time_keyboard=True, resize_keyboard=True)
-
-keyboard_idle = [
-    [
-        InlineKeyboardButton(text="Изменение данных", callback_data=str(CHANGE_DATA))
-    ]
-]
-
-idle_markup = InlineKeyboardMarkup(keyboard_idle)
+from FSM import states
+from handlers import registration_handlers
 
 # Enable logging
 logging.basicConfig(
@@ -61,10 +22,10 @@ logger = logging.getLogger(__name__)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     user = update.effective_user
 
-    context.user_data[CITIES] = []
-    context.user_data[VARIANT] = ''
-    context.user_data[LINKS] = []
-    context.user_data[IS_SHOWED_LOOP_MSG] = False
+    context.user_data['CITIES'] = []
+    context.user_data['VARIANT'] = ''
+    context.user_data['LINKS'] = []
+    context.user_data['IS_SHOWED_LOOP_MSG'] = False
 
     initial_message = f'Приветствую тебя {user.username} в нашем Concerts mate bot'
     if True:
@@ -72,182 +33,64 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
                                         f'{"Поскольку вы здесь впервые, нужно пройти процесс регистрации."}',
                                         reply_markup=ReplyKeyboardRemove())
         await update.message.reply_text('Введите город в котором вы желаете посещать концерты')
-        return REGISTRATION
+        return states.GlobalStates.REGISTRATION.value
     else:
         return END
 
 
-async def add_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    city_name = update.message.text
-    logger.info(msg=f'{city_name} by {update.effective_user.name}')
-    cities_data = context.user_data[CITIES]
-    if city_name in cities_data:
-        await update.message.reply_text(f"Город {city_name} уже был добавлен")
-    else:
-        luck_factor = random.randrange(0, 2)
-
-        if luck_factor % 2 == 1:
-            inline_keyboard = [
-                [
-                    InlineKeyboardButton('Добавить', callback_data=str(APPLY_ADD_VARIANT)),
-                    InlineKeyboardButton('Отказаться', callback_data=str(DENY_ADD_VARIANT))
-                ]
-            ]
-            await update.message.reply_text(f'Города {city_name} не существует, может вы имели ввиду Мурманск?',
-                                            reply_markup=ReplyKeyboardRemove())
-            reply_markup = InlineKeyboardMarkup(inline_keyboard)
-            context.user_data[VARIANT] = 'Мурманск'
-            await update.message.reply_text(f'Выберите вариант действий',
-                                            reply_markup=reply_markup)
-            return CITY_REGISTRATION_CALLBACKS
-
-        cities_data.append(city_name)
-        await update.message.reply_text(f"Город {city_name} добавлен успешно")
-    if not context.user_data[IS_SHOWED_LOOP_MSG]:
-        await update.message.reply_text(f'Вы можете продолжать вводить города по одному,'
-                                        f' чтобы пропустить этот процесс введите /skip или нажмите на кнопку снизу',
-                                        reply_markup=markup_city)
-        context.user_data[IS_SHOWED_LOOP_MSG] = True
-    return CITY_REGISTRATION
-
-
-async def stop_adding_cities(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    if len(context.user_data[CITIES]) == 0:
-        await update.message.reply_text('Вы не ввели ни одного города, введите город')
-        return CITY_REGISTRATION
-    text = 'Введенные вами города:'
-    for city in context.user_data[CITIES]:
-        text += f'\n{city}'
-    await update.message.reply_text(text, reply_markup=ReplyKeyboardRemove())
-    await update.message.reply_text('Укажите ссылку на плейлист/альбом откуда мы будем брать информацию о ваших '
-                                    'предпочтениях')
-    context.user_data[IS_SHOWED_LOOP_MSG] = False
-    return LINK_REGISTRATION
-
-
-async def add_link(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    msg = update.message.text
-    # TODO: Проветка ссылки на адекватность
-    if msg in context.user_data[LINKS]:
-        await update.message.reply_text('Такая ссылка уже была добавлена')
-        return LINK_REGISTRATION
-    else:
-        context.user_data[LINKS].append(msg)
-        await update.message.reply_text('Ссылка была добавлена успешно')
-    if not context.user_data[IS_SHOWED_LOOP_MSG]:
-        await update.message.reply_text(f'Вы можете продолжать вводить ссылки по одной,'
-                                        f' чтобы пропустить этот процесс введите /skip или нажмите на кнопку снизу',
-                                        reply_markup=markup_links)
-        context.user_data[IS_SHOWED_LOOP_MSG] = True
-    return LINK_REGISTRATION
-
-
-async def stop_adding_links(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    if len(context.user_data[LINKS]) == 0:
-        await update.message.reply_text('Вы не ввели ни одной ссылки, введите ссылку')
-        return LINK_REGISTRATION
-    text = 'Введенные вами ссылки:'
-    for link in context.user_data[LINKS]:
-        text += f'\n{link}'
-    await update.message.reply_text(text, reply_markup=ReplyKeyboardRemove())
-    await update.message.reply_text('Выберите действие', reply_markup=idle_markup)
-    return END
-
-
-async def apply_city_variant(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    city_name = context.user_data[VARIANT]
-    cities_data = context.user_data[CITIES]
-    await update.callback_query.edit_message_reply_markup(None)
-    if city_name in cities_data:
-        await update.effective_message.reply_text(f'Город {city_name} уже был добавлен', reply_markup=markup_city)
-    else:
-        cities_data.append(city_name)
-        await update.effective_message.reply_text(f'Город {city_name} был добавлен', reply_markup=markup_city)
-        if not context.user_data[IS_SHOWED_LOOP_MSG]:
-            await update.effective_message.reply_text(f'Вы можете продолжать вводить города по одному,'
-                                                      f' чтобы пропустить этот процесс введите /skip или нажмите на '
-                                                      f'кнопку снизу',
-                                                      reply_markup=markup_city)
-            context.user_data[IS_SHOWED_LOOP_MSG] = True
-
-    return CITY_REGISTRATION
-
-
-async def deny_city_variant(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    await update.callback_query.edit_message_reply_markup(None)
-    await update.effective_message.reply_text('Вариант отклонён', reply_markup=markup_city)
-    return CITY_REGISTRATION
-
-async def show_change_data_variants(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    keyboard = [
-        [
-            InlineKeyboardButton(text='Добавить город', callback_data=str(ADD_CITY))
-        ]
-    ]
-    await update.callback_query.edit_message_text(text='Выберите желаемое действие',
-                                                  reply_markup=InlineKeyboardMarkup(keyboard))
-    return CHANGE_DATA_CALLBACKS
-
 async def stop_nested(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text('Всего хорошего.')
-    return END
+    return states.END
 
 
 async def show_secret(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text('Помогите. Меня держат в подвале и заставляют делать фронтенд(бота этого)')
-    return END
+    return states.END
 
 
 def main() -> None:
     load_dotenv()
     print('launch the bot')
+    print(states.GlobalStates.CITY_REGISTRATION)
     application = Application.builder().token(getenv('BOT_TOKEN')).build()
 
     registration_conv_handler = ConversationHandler(
         entry_points=[MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex('^Прекратить ввод городов$')),
-                                     add_city)],
+                                     registration_handlers.add_city)],
         states={
-            CITY_REGISTRATION: [
+            states.GlobalStates.CITY_REGISTRATION.value: [
                 MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex('^Прекратить ввод городов$')),
-                               add_city),
-                CommandHandler('skip', stop_adding_cities),
+                               registration_handlers.add_city),
+                CommandHandler('skip', registration_handlers.stop_adding_cities),
                 MessageHandler(filters.TEXT & filters.Regex('^Прекратить ввод городов$'),
-                               stop_adding_cities)],
-            CITY_REGISTRATION_CALLBACKS: [
-                CallbackQueryHandler(apply_city_variant, pattern=f'^{APPLY_ADD_VARIANT}$'),
-                CallbackQueryHandler(deny_city_variant, pattern=f'^{DENY_ADD_VARIANT}$'),
+                               registration_handlers.stop_adding_cities)],
+            states.GlobalStates.CITY_REGISTRATION_CALLBACKS.value: [
+                CallbackQueryHandler(registration_handlers.apply_city_variant,
+                                     pattern=f'^{str(states.CityStates.APPLY_ADD_VARIANT)}$'),
+                CallbackQueryHandler(registration_handlers.deny_city_variant,
+                                     pattern=f'^{str(states.CityStates.DENY_ADD_VARIANT)}$'),
             ],
-            LINK_REGISTRATION: [
+            states.GlobalStates.LINK_REGISTRATION.value: [
                 MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex('^Прекратить ввод ссылок')),
-                               add_link),
-                CommandHandler('skip', stop_adding_links),
+                               registration_handlers.add_link),
+                CommandHandler('skip', registration_handlers.stop_adding_links),
                 MessageHandler(filters.TEXT & filters.Regex('^Прекратить ввод ссылок'),
-                               stop_adding_links)
+                               registration_handlers.stop_adding_links)
             ]
         },
         fallbacks=[CommandHandler("stop", stop_nested),
                    ],
         map_to_parent={
-            END: IDLE,
-            STOPPING: END
+            states.END: states.GlobalStates.IDLE.value,
+            states.GlobalStates.STOPPING.value: states.END
         }
-    )
-
-    change_data_conv_handler = ConversationHandler(
-        entry_points=[CallbackQueryHandler(show_change_data_variants, pattern=f'^{CHANGE_DATA}$')],
-        states={
-          CHANGE_DATA_CALLBACKS: [
-              CallbackQueryHandler(add_city, pattern=f'^{ADD_CITY}$')
-          ]
-        },
-        fallbacks=[CommandHandler("stop", stop_nested)]
     )
 
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
-            REGISTRATION: [registration_conv_handler],
-            IDLE: [change_data_conv_handler],
+            states.GlobalStates.REGISTRATION.value: [registration_conv_handler],
+            states.GlobalStates.IDLE.value: [CommandHandler("secret", show_secret)],
 
         },
         fallbacks=[CommandHandler("stop", stop_nested),

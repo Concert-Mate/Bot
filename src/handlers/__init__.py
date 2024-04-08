@@ -1,2 +1,1 @@
-from .bot_handlers import *
-from .states import *
+from .registration_handlers import *
