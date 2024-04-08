@@ -7,20 +7,22 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKe
 from telegram.ext import Application, CommandHandler, filters, ConversationHandler, ContextTypes, MessageHandler, \
     CallbackQueryHandler
 
-REGISTRATION, CITY_REGISTRATION, CITY_REGISTRATION_CALLBACKS, LINK_REGISTRATION, IDLE, STOPPING = map(
-    chr, range(6))
+REGISTRATION, CITY_REGISTRATION, CITY_REGISTRATION_CALLBACKS, LINK_REGISTRATION, IDLE, STOPPING, IDLE_CALLBACKS, CHANGE_DATA_CALLBACKS = map(
+    chr, range(8))
 
 (CONTINUE_ADD_CITIES,
  STOP_ADD_CITIES,
  APPLY_ADD_VARIANT,
- DENY_ADD_VARIANT) = map(chr, range(6, 10))
+ DENY_ADD_VARIANT,
+ ADD_CITY) = map(chr, range(20, 25))
 
 (
     CITIES,
     LINKS,
     VARIANT,
-    IS_SHOWED_LOOP_MSG
-) = map(chr, range(120, 124))
+    IS_SHOWED_LOOP_MSG,
+    CHANGE_DATA
+) = map(chr, range(120, 125))
 
 END = ConversationHandler.END
 
@@ -37,6 +39,14 @@ keyboard_links = [
     ]
 ]
 markup_links = ReplyKeyboardMarkup(keyboard_links, one_time_keyboard=True, resize_keyboard=True)
+
+keyboard_idle = [
+    [
+        InlineKeyboardButton(text="Изменение данных", callback_data=str(CHANGE_DATA))
+    ]
+]
+
+idle_markup = InlineKeyboardMarkup(keyboard_idle)
 
 # Enable logging
 logging.basicConfig(
@@ -140,6 +150,7 @@ async def stop_adding_links(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     for link in context.user_data[LINKS]:
         text += f'\n{link}'
     await update.message.reply_text(text, reply_markup=ReplyKeyboardRemove())
+    await update.message.reply_text('Выберите действие', reply_markup=idle_markup)
     return END
 
 
@@ -167,6 +178,15 @@ async def deny_city_variant(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await update.effective_message.reply_text('Вариант отклонён', reply_markup=markup_city)
     return CITY_REGISTRATION
 
+async def show_change_data_variants(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    keyboard = [
+        [
+            InlineKeyboardButton(text='Добавить город', callback_data=str(ADD_CITY))
+        ]
+    ]
+    await update.callback_query.edit_message_text(text='Выберите желаемое действие',
+                                                  reply_markup=InlineKeyboardMarkup(keyboard))
+    return CHANGE_DATA_CALLBACKS
 
 async def stop_nested(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text('Всего хорошего.')
@@ -213,13 +233,21 @@ def main() -> None:
         }
     )
 
+    change_data_conv_handler = ConversationHandler(
+        entry_points=[CallbackQueryHandler(show_change_data_variants, pattern=f'^{CHANGE_DATA}$')],
+        states={
+          CHANGE_DATA_CALLBACKS: [
+              CallbackQueryHandler(add_city, pattern=f'^{ADD_CITY}$')
+          ]
+        },
+        fallbacks=[CommandHandler("stop", stop_nested)]
+    )
+
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
-            REGISTRATION: [registration_conv_handler,
-
-                           ],
-            IDLE: [CommandHandler('secret', show_secret)],
+            REGISTRATION: [registration_conv_handler],
+            IDLE: [change_data_conv_handler],
 
         },
         fallbacks=[CommandHandler("stop", stop_nested),
