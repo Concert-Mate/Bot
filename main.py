@@ -4,14 +4,16 @@ import sys
 from os import getenv
 
 from aiogram import Bot, Dispatcher
-from aiogram.enums import ParseMode
+from aiogram.client.default import DefaultBotProperties
 
 import src.handlers as handlers
 
 
 async def main():
+    # TODO: добавить обработку, когда прислали изображение, ГС, файл вместо геопозиции
+
     print('successful launch')
-    bot = Bot(token=getenv('BOT_TOKEN'), parse_mode=ParseMode.HTML)
+    bot = Bot(token=getenv('BOT_TOKEN'), default=DefaultBotProperties())
     dp = Dispatcher()
     dp.include_router(handlers.common_router)
     dp.include_router(handlers.registration_router)
