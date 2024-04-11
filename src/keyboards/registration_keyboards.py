@@ -1,8 +1,9 @@
 from aiogram import types
+from aiogram.types import ReplyKeyboardMarkup, InlineKeyboardMarkup
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 
 
-def get_location_keyboard_markup():
+def get_location_keyboard_markup() -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     builder.row(types.KeyboardButton(
         text='Отправить геолокацию',
@@ -16,7 +17,7 @@ skip_add_cities_texts = ['Прекратить ввод городов']
 skip_add_links_texts = ['Прекратить ввод ссылок']
 
 
-def get_skip_add_cities_markup():
+def get_skip_add_cities_markup() -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     builder.row(types.KeyboardButton(
         text=skip_add_cities_texts[0],
@@ -24,7 +25,7 @@ def get_skip_add_cities_markup():
     return builder.as_markup(resize_keyboard=True)
 
 
-def get_skip_add_links_markup():
+def get_skip_add_links_markup() -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     builder.row(types.KeyboardButton(
         text=skip_add_links_texts[0],
@@ -32,7 +33,7 @@ def get_skip_add_links_markup():
     return builder.as_markup(resize_keyboard=True)
 
 
-def get_fuzz_variants_markup():
+def get_fuzz_variants_markup() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
     builder.row(

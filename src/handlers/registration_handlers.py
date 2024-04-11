@@ -5,7 +5,7 @@ from aiogram.enums import ContentType
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery
+from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery, InaccessibleMessage
 
 from src import keyboards
 from src.api_service import add_city, AddCityCodes, AddPlaylistCodes, add_playlist
@@ -20,7 +20,7 @@ __after_first_link_msg = ('Вы можете вводить дальше ссы�
                           '/skip или нажмите кнокну снизу')
 
 
-async def __send_fuzz_variant_message(city: str, message: Message, state: FSMContext):
+async def __send_fuzz_variant_message(city: str, message: Message, state: FSMContext) -> None:
     await message.answer(text=f'Города {city} не существует, может быть вы имели ввиду Челябинск?',
                          reply_markup=ReplyKeyboardRemove())
     await state.update_data(variant='Челябинск')
@@ -39,7 +39,7 @@ async def __add_city(city: str, is_first_city: bool, state: FSMContext) -> bool:
     return True
 
 
-async def __add_link(link: str, is_first_link: bool, state: FSMContext):
+async def __add_link(link: str, is_first_link: bool, state: FSMContext) -> bool:
     if is_first_link:
         await state.update_data(links=[link])
         return True
@@ -51,7 +51,10 @@ async def __add_link(link: str, is_first_link: bool, state: FSMContext):
 
 
 @registration_router.message(RegistrationStates.ADD_FIRST_CITY, F.content_type == ContentType.LOCATION)
-async def add_first_city_from_location(message: Message, state: FSMContext):
+async def add_first_city_from_location(message: Message, state: FSMContext) -> None:
+    if message.location is None or message.location.latitude is None or message.location.longitude is None:
+        await message.answer('Некорректный формат координат, попробуйте еще раз')
+        return
     coords = f'lat:{message.location.latitude}, lng:{message.location.longitude}'
     await __add_city(coords, True, state)
     await message.answer(text=f"Ваши координаты: {coords}", reply_markup=ReplyKeyboardRemove())
@@ -62,10 +65,18 @@ async def add_first_city_from_location(message: Message, state: FSMContext):
 
 
 @registration_router.message(RegistrationStates.ADD_FIRST_CITY, F.content_type == ContentType.TEXT and F.text[0] != '/')
-async def add_first_city_from_text(message: Message, state: FSMContext):
+async def add_first_city_from_text(message: Message, state: FSMContext) -> None:
     city = message.text
+    if city is None:
+        await message.answer(text='Неверный формат текста')
+        return
+    if message.from_user is None:
+        return
+    user_id = message.from_user.id
+    if user_id is None:
+        return
     try:
-        response = add_city(message.from_user.id, city)
+        response = add_city(user_id, city)
     except ValueError:
         print('Некорректный код')
         return
@@ -92,7 +103,7 @@ async def add_first_city_from_text(message: Message, state: FSMContext):
 
 @registration_router.message(RegistrationStates.ADD_CITIES_IN_LOOP, F.text.in_(keyboards.skip_add_cities_texts))
 @registration_router.message(RegistrationStates.ADD_CITIES_IN_LOOP, Command('skip'))
-async def skip_add_cities(message: Message, state: FSMContext):
+async def skip_add_cities(message: Message, state: FSMContext) -> None:
     txt = f'Введенные вами города:'
     user_data = await state.get_data()
     for city in user_data['cities']:
@@ -104,8 +115,17 @@ async def skip_add_cities(message: Message, state: FSMContext):
 
 @registration_router.message(RegistrationStates.ADD_CITIES_IN_LOOP, (F.content_type == ContentType.TEXT
                                                                      and F.text[0] != '/'))
-async def add_city_in_loop(message: Message, state: FSMContext):
+async def add_city_in_loop(message: Message, state: FSMContext) -> None:
     city = message.text
+    if city is None:
+        await message.answer(text='Неверный формат текста')
+        return
+    if message.from_user is None:
+        return
+    user_id = message.from_user.id
+    if user_id is None:
+        return
+
     try:
         response = add_city(message.from_user.id, city)
     except ValueError:
@@ -136,10 +156,12 @@ async def add_city_in_loop(message: Message, state: FSMContext):
 
 
 @registration_router.callback_query(RegistrationStates.ADD_CITY_CALLBACKS, F.data == 'apply')
-async def apply_city_callback(callback_query: CallbackQuery, state: FSMContext):
+async def apply_city_callback(callback_query: CallbackQuery, state: FSMContext) -> None:
     user_data = await state.get_data()
     city = user_data['variant']
     bot = callback_query.bot
+    if bot is None or callback_query.message is None:
+        return
     try:
         response = add_city(callback_query.from_user.id, city)
     except ValueError:
@@ -181,13 +203,16 @@ async def apply_city_callback(callback_query: CallbackQuery, state: FSMContext):
             response.code == AddCityCodes.CITY_IS_FUZZ or
             response.code == AddCityCodes.CITY_NOT_EXIST):
         with suppress(TelegramBadRequest):
-            await callback_query.message.edit_text(text='Ошибки на стороне сервиса, попробуйте еще раз',
-                                                   reply_markup=keyboards.get_fuzz_variants_markup())
+            if isinstance(callback_query.message, Message):
+                await callback_query.message.edit_text(text='Ошибки на стороне сервиса, попробуйте еще раз',
+                                                       reply_markup=keyboards.get_fuzz_variants_markup())
 
 
 @registration_router.callback_query(RegistrationStates.ADD_CITY_CALLBACKS, F.data == 'deny')
-async def deny_city_variant(callback_query: CallbackQuery, state: FSMContext):
+async def deny_city_variant(callback_query: CallbackQuery, state: FSMContext) -> None:
     bot = callback_query.bot
+    if bot is None or callback_query is None or callback_query.message is None:
+        return
     await bot.edit_message_reply_markup(chat_id=callback_query.message.chat.id,
                                         message_id=callback_query.message.message_id,
                                         reply_markup=None)
@@ -207,7 +232,7 @@ async def deny_city_variant(callback_query: CallbackQuery, state: FSMContext):
 
 @registration_router.message(RegistrationStates.ADD_LINK, F.text.in_(keyboards.skip_add_links_texts))
 @registration_router.message(RegistrationStates.ADD_LINK, Command('skip'))
-async def skip_add_cities(message: Message, state: FSMContext):
+async def skip_add_links(message: Message, state: FSMContext) -> None:
     txt = f'Введенные вами ссылки:'
     user_data = await state.get_data()
     for city in user_data['links']:
@@ -217,8 +242,17 @@ async def skip_add_cities(message: Message, state: FSMContext):
 
 
 @registration_router.message(RegistrationStates.ADD_LINK, F.content_type == ContentType.TEXT and F.text[0] != '/')
-async def add_link(message: Message, state: FSMContext):
+async def add_link(message: Message, state: FSMContext) -> None:
     link = message.text
+    if link is None:
+        await message.answer(text='Неверный формат текста')
+        return
+    if message.from_user is None:
+        return
+    user_id = message.from_user.id
+    if user_id is None:
+        return
+
     try:
         response = add_playlist(message.from_user.id, link)
     except ValueError:

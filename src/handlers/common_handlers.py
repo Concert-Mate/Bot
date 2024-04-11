@@ -12,6 +12,11 @@ common_router = Router()
 
 @common_router.message(CommandStart())
 async def command_start(message: Message, state: FSMContext) -> None:
+    if message.from_user is None:
+        return
+    user_id = message.from_user.id
+    if user_id is None:
+        return
     try:
         response = register_user(message.from_user.id)
     except ValueError:

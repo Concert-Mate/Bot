@@ -9,10 +9,14 @@ from aiogram.client.default import DefaultBotProperties
 import src.handlers as handlers
 
 
-async def main():
+async def main() -> None:
 
     print('successful launch')
-    bot = Bot(token=getenv('BOT_TOKEN'), default=DefaultBotProperties())
+    token = getenv('BOT_TOKEN')
+    if token is None:
+        print('bot token not')
+        return
+    bot = Bot(token=token, default=DefaultBotProperties())
     dp = Dispatcher()
     dp.include_router(handlers.common_router)
     dp.include_router(handlers.registration_router)

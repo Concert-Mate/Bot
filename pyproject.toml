@@ -5,6 +5,7 @@ package-mode = false
 python = "^3.12"
 aiogram = "^3.4.1"
 poetry-plugin-dotenv = "^0.8.3"
+mypy = "^1.9.0"
 
 
 [build-system]
