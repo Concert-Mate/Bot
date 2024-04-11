@@ -1,4 +1,3 @@
-import random
 from contextlib import suppress
 
 from aiogram import Router, F
@@ -8,9 +7,9 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery
 
-from src.states import RegistrationStates
 from src import keyboards
 from src.api_service import add_city, AddCityCodes, AddPlaylistCodes, add_playlist
+from src.states import RegistrationStates
 
 registration_router = Router()
 
@@ -62,7 +61,7 @@ async def add_first_city_from_location(message: Message, state: FSMContext):
     # QUESTION: Может ли быть тут некорректный город?
 
 
-@registration_router.message(RegistrationStates.ADD_FIRST_CITY, F.text and ~F.text.startswith('/'))
+@registration_router.message(RegistrationStates.ADD_FIRST_CITY, F.content_type == ContentType.TEXT and F.text[0] != '/')
 async def add_first_city_from_text(message: Message, state: FSMContext):
     city = message.text
     try:
@@ -103,8 +102,8 @@ async def skip_add_cities(message: Message, state: FSMContext):
     await state.set_state(RegistrationStates.ADD_LINK)
 
 
-@registration_router.message(RegistrationStates.ADD_CITIES_IN_LOOP, F.text
-                             and ~F.text.startswith('/'))
+@registration_router.message(RegistrationStates.ADD_CITIES_IN_LOOP, (F.content_type == ContentType.TEXT
+                                                                     and F.text[0] != '/'))
 async def add_city_in_loop(message: Message, state: FSMContext):
     city = message.text
     try:
@@ -217,8 +216,7 @@ async def skip_add_cities(message: Message, state: FSMContext):
     await state.clear()
 
 
-@registration_router.message(RegistrationStates.ADD_LINK, F.text
-                             and ~F.text.startswith('/'))
+@registration_router.message(RegistrationStates.ADD_LINK, F.content_type == ContentType.TEXT and F.text[0] != '/')
 async def add_link(message: Message, state: FSMContext):
     link = message.text
     try:

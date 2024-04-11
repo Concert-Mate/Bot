@@ -10,7 +10,6 @@ import src.handlers as handlers
 
 
 async def main():
-    # TODO: добавить обработку, когда прислали изображение, ГС, файл вместо геопозиции
 
     print('successful launch')
     bot = Bot(token=getenv('BOT_TOKEN'), default=DefaultBotProperties())
