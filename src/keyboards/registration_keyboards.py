@@ -38,7 +38,8 @@ def get_fuzz_variants_markup() -> InlineKeyboardMarkup:
 
     builder.row(
         types.InlineKeyboardButton(
-            text='Принять', callback_data='apply'),
+            text='Принять', callback_data='apply'
+        ),
         types.InlineKeyboardButton(
             text='Отказаться', callback_data='deny'
         )

@@ -10,8 +10,6 @@ import src.handlers as handlers
 
 
 async def main() -> None:
-
-    print('successful launch')
     token = getenv('BOT_TOKEN')
     if token is None:
         print('bot token not')
@@ -20,6 +18,8 @@ async def main() -> None:
     dp = Dispatcher()
     dp.include_router(handlers.common_router)
     dp.include_router(handlers.registration_router)
+    dp.include_router(handlers.menu_router)
+    dp.include_router(handlers.change_data_router)
     await dp.start_polling(bot)
 
 

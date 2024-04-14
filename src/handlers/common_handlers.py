@@ -3,8 +3,8 @@ from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
-from src.states import RegistrationStates
-from src.keyboards import get_location_keyboard_markup
+from src.states import RegistrationStates, MenuStates
+from src.keyboards import get_location_keyboard_markup, get_main_menu_keyboard
 from src.api_service import register_user, UserRegistrateCodes
 
 common_router = Router()
@@ -22,7 +22,7 @@ async def command_start(message: Message, state: FSMContext) -> None:
     except ValueError:
         print('Некорректный код')
         return
-
+    response.code = UserRegistrateCodes.USER_ALREADY_EXISTS
     if response.code == UserRegistrateCodes.SUCCESS:
         await message.answer(text=f'Привет, {message.from_user.username},'
                                   f' поскольку вы в нашем боте еще не зарегистрированы - самое время сделать это.'
@@ -34,7 +34,11 @@ async def command_start(message: Message, state: FSMContext) -> None:
     if response.code == UserRegistrateCodes.USER_ALREADY_EXISTS:
         await message.answer(text=f'Привет, {message.from_user.username},'
                                   f' мы вас помним, вы регистрировались {response.registration_date} числа')
-        await state.clear()
+        await state.set_state(MenuStates.MAIN_MENU)
+        await state.update_data(is_first_city=False)
+        await state.update_data(cities=[])
+        await state.update_data(links=[])
+        await message.answer('Выберите действие', reply_markup=get_main_menu_keyboard())
         return
     if response.code == UserRegistrateCodes.NO_CONNECTION or response.code == UserRegistrateCodes.INTERNAL_SERVER_ERROR:
         await message.answer(text='Внутрение проблемы сервиса, попробуйте позже')
