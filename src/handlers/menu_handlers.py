@@ -44,5 +44,48 @@ async def go_to_menu(callback_query: CallbackQuery, state: FSMContext) -> None:
 async def go_to_faq(callback_query: CallbackQuery, state: FSMContext) -> None:
     await callback_query.message.edit_text('Выберите действие', reply_markup=keyboards.get_faq_keyboard())
     await state.set_state(MenuStates.FAQ)
-    bot = callback_query.message.bot
-    bot.send_animation()
+
+
+@menu_router.callback_query(MenuStates.MAIN_MENU, F.data == 'user_info')
+async def show_change_data_variants(callback_query: CallbackQuery, state: FSMContext) -> None:
+    await callback_query.message.edit_text('Выберите действие', reply_markup=keyboards.get_user_info_keyboard())
+    await state.set_state(MenuStates.USER_INFO)
+
+
+@menu_router.callback_query(MenuStates.USER_INFO, F.data == 'cities')
+async def show_change_data_variants(callback_query: CallbackQuery, state: FSMContext) -> None:
+    txt = 'Ваши города:'
+    user_data = await state.get_data()
+    for city in user_data['cities']:
+        txt += f'\n{city}'
+    await callback_query.message.edit_text(text=txt, reply_markup=keyboards.get_back_keyboard())
+    await state.set_state(MenuStates.USER_INFO_DEAD_END)
+
+
+@menu_router.callback_query(MenuStates.USER_INFO, F.data == 'links')
+async def show_change_data_variants(callback_query: CallbackQuery, state: FSMContext) -> None:
+    txt = 'Ваши плейлисты:'
+    user_data = await state.get_data()
+    for link in user_data['links']:
+        txt += f'\n{link}'
+    await callback_query.message.edit_text(text=txt, reply_markup=keyboards.get_back_keyboard())
+    await state.set_state(MenuStates.USER_INFO_DEAD_END)
+
+
+@menu_router.callback_query(MenuStates.USER_INFO, F.data == 'performers')
+async def show_change_data_variants(callback_query: CallbackQuery, state: FSMContext) -> None:
+    txt = 'Ваши любимые исполнители:'
+    await callback_query.message.edit_text(text=txt, reply_markup=keyboards.get_back_keyboard())
+    await state.set_state(MenuStates.USER_INFO_DEAD_END)
+
+
+@menu_router.callback_query(MenuStates.USER_INFO_DEAD_END, F.data == 'back')
+async def go_to_faq(callback_query: CallbackQuery, state: FSMContext) -> None:
+    await callback_query.message.edit_text('Выберите действие', reply_markup=keyboards.get_user_info_keyboard())
+    await state.set_state(MenuStates.USER_INFO)
+
+
+@menu_router.callback_query(MenuStates.USER_INFO, F.data == 'back')
+async def show_change_data_variants(callback_query: CallbackQuery, state: FSMContext) -> None:
+    await callback_query.message.edit_text(text='Выберите действие', reply_markup=keyboards.get_main_menu_keyboard())
+    await state.set_state(MenuStates.MAIN_MENU)

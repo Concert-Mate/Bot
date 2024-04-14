@@ -6,3 +6,5 @@ class MenuStates(StatesGroup):
     CHANGE_DATA = State()
     FAQ = State()
     FAQ_DEAD_END = State()
+    USER_INFO = State()
+    USER_INFO_DEAD_END = State()

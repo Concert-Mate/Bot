@@ -100,3 +100,23 @@ def get_back_keyboard() -> InlineKeyboardMarkup:
     )
 
     return builder.as_markup(resize_keyboard=True)
+
+
+def get_user_info_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        types.InlineKeyboardButton(
+            text='Города', callback_data='cities'),
+        types.InlineKeyboardButton(
+            text='Плейлисты', callback_data='links'),
+    )
+    builder.row(
+        types.InlineKeyboardButton(
+             text='Любимые исполнители', callback_data='performers'),
+    )
+    builder.row(
+        types.InlineKeyboardButton(
+            text='Назад', callback_data='back'),
+    )
+
+    return builder.as_markup(resize_keyboard=True)
