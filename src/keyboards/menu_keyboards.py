@@ -112,8 +112,47 @@ def get_user_info_keyboard() -> InlineKeyboardMarkup:
     )
     builder.row(
         types.InlineKeyboardButton(
-             text='Любимые исполнители', callback_data='performers'),
+            text='Любимые исполнители', callback_data='performers'),
     )
+    builder.row(
+        types.InlineKeyboardButton(
+            text='Назад', callback_data='back'),
+    )
+
+    return builder.as_markup(resize_keyboard=True)
+
+
+def get_tools_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        types.InlineKeyboardButton(
+            text='Показать возможные концерты', callback_data='show_concerts'),
+    )
+    builder.row(
+        types.InlineKeyboardButton(
+            text='Показ уведомлений', callback_data='notice_management'),
+    )
+    builder.row(
+        types.InlineKeyboardButton(
+            text='Назад', callback_data='back'),
+    )
+
+    return builder.as_markup(resize_keyboard=True)
+
+
+def get_notify_management_keyboard(is_enabled: bool) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    if is_enabled:
+        builder.row(
+            types.InlineKeyboardButton(
+                text='Отключить', callback_data='disable'),
+        )
+    else:
+        builder.row(
+            types.InlineKeyboardButton(
+                text='Включить', callback_data='enable'),
+        )
+
     builder.row(
         types.InlineKeyboardButton(
             text='Назад', callback_data='back'),

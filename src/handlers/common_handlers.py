@@ -1,7 +1,7 @@
 from aiogram import Router
 from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message
+from aiogram.types import Message, ReplyKeyboardRemove
 
 from src.states import RegistrationStates, MenuStates
 from src.keyboards import get_location_keyboard_markup, get_main_menu_keyboard
@@ -22,7 +22,7 @@ async def command_start(message: Message, state: FSMContext) -> None:
     except ValueError:
         print('Некорректный код')
         return
-    response.code = UserRegistrateCodes.USER_ALREADY_EXISTS
+    await state.update_data(notices_enabled=True)
     if response.code == UserRegistrateCodes.SUCCESS:
         await message.answer(text=f'Привет, {message.from_user.username},'
                                   f' поскольку вы в нашем боте еще не зарегистрированы - самое время сделать это.'
@@ -33,7 +33,8 @@ async def command_start(message: Message, state: FSMContext) -> None:
         return
     if response.code == UserRegistrateCodes.USER_ALREADY_EXISTS:
         await message.answer(text=f'Привет, {message.from_user.username},'
-                                  f' мы вас помним, вы регистрировались {response.registration_date} числа')
+                                  f' мы вас помним, вы регистрировались {response.registration_date} числа',
+                             reply_markup=ReplyKeyboardRemove())
         await state.set_state(MenuStates.MAIN_MENU)
         await state.update_data(is_first_city=False)
         await state.update_data(cities=[])

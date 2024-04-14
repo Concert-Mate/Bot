@@ -1,4 +1,7 @@
+from contextlib import suppress
+
 from aiogram import Router, F
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
@@ -22,8 +25,8 @@ async def show_faq_variants(callback_query: CallbackQuery, state: FSMContext) ->
 
 @menu_router.callback_query(MenuStates.FAQ, F.data == 'main_info')
 async def show_main_info(callback_query: CallbackQuery, state: FSMContext) -> None:
-    await callback_query.message.edit_text('ЗДЕСЬ МОЖЕТ БЫТЬ ВАША РЕКЛАМА'
-                                           , reply_markup=keyboards.get_back_keyboard())
+    await callback_query.message.edit_text('Информация',
+                                           reply_markup=keyboards.get_back_keyboard())
     await state.set_state(MenuStates.FAQ_DEAD_END)
 
 
@@ -89,3 +92,65 @@ async def go_to_faq(callback_query: CallbackQuery, state: FSMContext) -> None:
 async def show_change_data_variants(callback_query: CallbackQuery, state: FSMContext) -> None:
     await callback_query.message.edit_text(text='Выберите действие', reply_markup=keyboards.get_main_menu_keyboard())
     await state.set_state(MenuStates.MAIN_MENU)
+
+
+@menu_router.callback_query(MenuStates.MAIN_MENU, F.data == 'tools')
+async def show_tools(callback_query: CallbackQuery, state: FSMContext) -> None:
+    await callback_query.message.edit_text('Выберите действие', reply_markup=keyboards.get_tools_keyboard())
+    await state.set_state(MenuStates.TOOLS)
+
+
+@menu_router.callback_query(MenuStates.TOOLS, F.data == 'show_concerts')
+async def show_all_concerts(callback_query: CallbackQuery, state: FSMContext) -> None:
+    bot = callback_query.bot
+    if bot is None or callback_query is None or callback_query.message is None:
+        return
+    # TODO: Обращение к бэку
+    txt = 'Информация о концерте'
+    await bot.delete_message(chat_id=callback_query.message.chat.id, message_id=callback_query.message.message_id)
+    await bot.send_message(chat_id=callback_query.message.chat.id,
+                           text=txt, reply_markup=None)
+    await bot.send_message(chat_id=callback_query.message.chat.id, text='Выберите действие',
+                           reply_markup=keyboards.get_tools_keyboard())
+    await state.set_state(MenuStates.TOOLS)
+
+
+@menu_router.callback_query(MenuStates.TOOLS, F.data == 'back')
+async def go_to_menu(callback_query: CallbackQuery, state: FSMContext) -> None:
+    await callback_query.message.edit_text('Выберите действие', reply_markup=keyboards.get_main_menu_keyboard())
+    await state.set_state(MenuStates.MAIN_MENU)
+
+
+@menu_router.callback_query(MenuStates.TOOLS, F.data == 'notice_management')
+async def show_variants(callback_query: CallbackQuery, state: FSMContext) -> None:
+    user_data = await state.get_data()
+    await callback_query.message.edit_text('Выберите действие',
+                                           reply_markup=keyboards.
+                                           get_notify_management_keyboard(user_data['notices_enabled']))
+    await state.set_state(MenuStates.MANAGING_NOTIFICATIONS)
+
+
+@menu_router.callback_query(MenuStates.MANAGING_NOTIFICATIONS, F.data == 'enable')
+async def swap_notice_enable(callback_query: CallbackQuery, state: FSMContext) -> None:
+    user_data = await state.get_data()
+    user_data['notices_enabled'] = True
+    with suppress(TelegramBadRequest):
+        await callback_query.message.edit_text(text='Выберите действие',
+                                               reply_markup=keyboards.
+                                               get_notify_management_keyboard(True))
+
+
+@menu_router.callback_query(MenuStates.MANAGING_NOTIFICATIONS, F.data == 'disable')
+async def swap_notice_enable_disable(callback_query: CallbackQuery, state: FSMContext) -> None:
+    user_data = await state.get_data()
+    user_data['notices_enabled'] = False
+    with suppress(TelegramBadRequest):
+        await callback_query.message.edit_text(text='Выберите действие',
+                                               reply_markup=keyboards.
+                                               get_notify_management_keyboard(False))
+
+
+@menu_router.callback_query(MenuStates.MANAGING_NOTIFICATIONS, F.data == 'back')
+async def go_to_tools(callback_query: CallbackQuery, state: FSMContext) -> None:
+    await callback_query.message.edit_text('Выберите действие', reply_markup=keyboards.get_tools_keyboard())
+    await state.set_state(MenuStates.TOOLS)

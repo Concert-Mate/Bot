@@ -90,7 +90,7 @@ __add_playlist_codes_map = {
 
 def register_user(telegram_id: int) -> UserRegistrationResponse:
     # TODO: обращение к бэку
-    luck_factor = random.randint(0, 0)
+    luck_factor = random.randint(0, 3)
     reg_date = ''
     if luck_factor == 1:
         reg_date = date.today().isoformat()

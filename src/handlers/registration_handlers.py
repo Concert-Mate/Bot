@@ -9,7 +9,7 @@ from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery, Inaccessi
 
 from src import keyboards
 from src.api_service import add_city, AddCityCodes, AddPlaylistCodes, add_playlist
-from src.states import RegistrationStates
+from src.states import RegistrationStates, MenuStates
 
 registration_router = Router()
 
@@ -104,12 +104,8 @@ async def add_first_city_from_text(message: Message, state: FSMContext) -> None:
 @registration_router.message(RegistrationStates.ADD_CITIES_IN_LOOP, F.text.in_(keyboards.skip_add_cities_texts))
 @registration_router.message(RegistrationStates.ADD_CITIES_IN_LOOP, Command('skip'))
 async def skip_add_cities(message: Message, state: FSMContext) -> None:
-    txt = f'Введенные вами города:'
-    user_data = await state.get_data()
-    for city in user_data['cities']:
-        txt += f'\n{city}'
-    await message.answer(text=txt, reply_markup=ReplyKeyboardRemove())
-    await message.answer(text='Введите ссылку, откуда мы будем выбирать ваших любимых исполнителей')
+    await message.answer(text='Введите ссылку, откуда мы будем выбирать ваших любимых исполнителей',
+                         reply_markup=ReplyKeyboardRemove())
     await state.set_state(RegistrationStates.ADD_LINK)
 
 
@@ -233,12 +229,9 @@ async def deny_city_variant(callback_query: CallbackQuery, state: FSMContext) ->
 @registration_router.message(RegistrationStates.ADD_LINK, F.text.in_(keyboards.skip_add_links_texts))
 @registration_router.message(RegistrationStates.ADD_LINK, Command('skip'))
 async def skip_add_links(message: Message, state: FSMContext) -> None:
-    txt = f'Введенные вами ссылки:'
-    user_data = await state.get_data()
-    for city in user_data['links']:
-        txt += f'\n{city}'
-    await message.answer(text=txt, reply_markup=ReplyKeyboardRemove())
-    await state.clear()
+    await message.answer(text='Регистрация окончена', reply_markup=ReplyKeyboardRemove())
+    await message.answer(text='Выберите действие', reply_markup=keyboards.get_main_menu_keyboard())
+    await state.set_state(MenuStates.MAIN_MENU)
 
 
 @registration_router.message(RegistrationStates.ADD_LINK, F.content_type == ContentType.TEXT and F.text[0] != '/')

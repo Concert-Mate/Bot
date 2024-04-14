@@ -1,3 +1,4 @@
+import random
 from contextlib import suppress
 
 from aiogram import Router, F
@@ -157,6 +158,16 @@ async def remove_city(callback_query: CallbackQuery, state: FSMContext):
     bot = callback_query.bot
     if bot is None or callback_query.message is None:
         return
+
+    if random.randint(0, 1) == 1:
+        await bot.edit_message_text(chat_id=callback_query.message.chat.id,
+                                    message_id=callback_query.message.message_id,
+                                    text=f'Проблемы на стороне сервиса, попробуйте позже', reply_markup=None)
+        await bot.send_message(chat_id=callback_query.message.chat.id, text='Выберите вариант',
+                               reply_markup=keyboards.get_change_data_keyboard())
+        await state.set_state(MenuStates.CHANGE_DATA)
+        return
+
     await bot.edit_message_text(chat_id=callback_query.message.chat.id, message_id=callback_query.message.message_id,
                                 text=f'Город {city} успешно удалён')
     user_data = await state.get_data()
@@ -247,6 +258,14 @@ async def remove_playlist(callback_query: CallbackQuery, state: FSMContext):
     playlist = callback_query.data
     bot = callback_query.bot
     if bot is None or callback_query.message is None:
+        return
+    if random.randint(0, 1) == 1:
+        await bot.edit_message_text(chat_id=callback_query.message.chat.id,
+                                    message_id=callback_query.message.message_id,
+                                    text=f'Проблемы на стороне сервиса, попробуйте позже', reply_markup=None)
+        await bot.send_message(chat_id=callback_query.message.chat.id, text='Выберите вариант',
+                               reply_markup=keyboards.get_change_data_keyboard())
+        await state.set_state(MenuStates.CHANGE_DATA)
         return
     await bot.edit_message_text(chat_id=callback_query.message.chat.id, message_id=callback_query.message.message_id,
                                 text=f'Ссылка {playlist} успешно удалёна', reply_markup=None)
