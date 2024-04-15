@@ -1,3 +1,5 @@
+from typing import List
+
 from aiogram import types
 from aiogram.types import ReplyKeyboardMarkup, InlineKeyboardMarkup
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
@@ -58,7 +60,7 @@ def get_cancel_keyboard() -> InlineKeyboardMarkup:
     return builder.as_markup(resize_keyboard=True)
 
 
-def create_inline_keyboard_with_back(rows: [str]):
+def create_inline_keyboard_with_back(rows: List[str]) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for row in rows:
         builder.row(
@@ -109,10 +111,6 @@ def get_user_info_keyboard() -> InlineKeyboardMarkup:
             text='Города', callback_data='cities'),
         types.InlineKeyboardButton(
             text='Плейлисты', callback_data='links'),
-    )
-    builder.row(
-        types.InlineKeyboardButton(
-            text='Любимые исполнители', callback_data='performers'),
     )
     builder.row(
         types.InlineKeyboardButton(

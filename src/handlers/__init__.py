@@ -1,4 +1,4 @@
-__all__ = ['common_router', 'registration_router', 'menu_router', 'change_data_handlers']
+__all__ = ['common_router', 'registration_router', 'menu_router', 'change_data_router']
 
 from .common_handlers import common_router
 from .registration_handlers import registration_router

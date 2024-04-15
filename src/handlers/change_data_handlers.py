@@ -8,7 +8,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from src import keyboards
-from src.api_service import add_city, AddCityCodes, add_playlist, AddPlaylistCodes
+from src.user_service_agent import add_city, add_playlist, ResponseCodes
 from src.states import MenuStates, ChangeDataStates
 
 change_data_router = Router()
@@ -23,6 +23,8 @@ async def __send_fuzz_variant_message(city: str, message: Message, state: FSMCon
 
 @change_data_router.callback_query(MenuStates.CHANGE_DATA, F.data == 'back')
 async def show_change_data_variants(callback_query: CallbackQuery, state: FSMContext) -> None:
+    if not isinstance(callback_query.message, Message):
+        return
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text('Выберите действие', reply_markup=keyboards.get_main_menu_keyboard())
         await state.set_state(MenuStates.MAIN_MENU)
@@ -42,6 +44,8 @@ async def add_city_text_send(callback_query: CallbackQuery, state: FSMContext) -
 
 @change_data_router.callback_query(ChangeDataStates.ENTER_NEW_CITY, F.data == 'cancel')
 async def cancel_add_city(callback_query: CallbackQuery, state: FSMContext) -> None:
+    if not isinstance(callback_query.message, Message):
+        return
     await callback_query.message.edit_text(text='Выберите действие', reply_markup=keyboards.get_change_data_keyboard())
     await state.set_state(MenuStates.CHANGE_DATA)
 
@@ -50,6 +54,8 @@ async def cancel_add_city(callback_query: CallbackQuery, state: FSMContext) -> N
                                                               and F.text[0] != '/'))
 async def add_one_city(message: Message, state: FSMContext) -> None:
     bot = message.bot
+    if bot is None:
+        return
     await bot.delete_message(message.chat.id, message.message_id - 1)
     city = message.text
     if city is None:
@@ -69,21 +75,21 @@ async def add_one_city(message: Message, state: FSMContext) -> None:
 
     user_data = await state.get_data()
 
-    if response.code == AddCityCodes.SUCCESS:
+    if response.code == ResponseCodes.SUCCESS:
         if city in user_data['cities']:
             await message.answer(text='Город уже был добавлен')
         else:
             user_data['cities'].append(city)
             await message.answer(text=f'Город {city} добавлен успешно.')
-    if response.code == AddCityCodes.CITY_NOT_EXIST:
+    if response.code == ResponseCodes.INVALID_CITY:
         await message.answer(text='Некорректно введен город или его не существует')
-    if response.code == AddCityCodes.CITY_IS_FUZZ:
+    if response.code == ResponseCodes.FUZZY_CITY:
         await __send_fuzz_variant_message(city, message, state)
         return
-    if (response.code == AddCityCodes.CITY_ALREADY_ADDED or
-            response.code == AddCityCodes.NO_CONNECTION or
-            response.code == AddCityCodes.INTERNAL_SERVER_ERROR or
-            response.code == AddCityCodes.USER_NOT_FOUND):
+    if (response.code == ResponseCodes.CITY_ALREADY_ADDED or
+            response.code == ResponseCodes.NO_CONNECTION or
+            response.code == ResponseCodes.INTERNAL_ERROR or
+            response.code == ResponseCodes.USER_NOT_FOUND):
         await message.answer(text='Ошибки на стороне сервиса, попробуйте еще раз')
 
     await message.answer(text='Выберите вариант', reply_markup=keyboards.get_change_data_keyboard())
@@ -104,7 +110,7 @@ async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext) -
         return
     await callback_query.answer()
 
-    if response.code == AddCityCodes.SUCCESS:
+    if response.code == ResponseCodes.SUCCESS:
         if city not in user_data['cities']:
             user_data['cities'].append(city)
             await bot.edit_message_text(chat_id=callback_query.message.chat.id, text='Город успешно добавлен',
@@ -118,12 +124,12 @@ async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext) -
         await state.set_state(MenuStates.CHANGE_DATA)
         return
 
-    if (response.code == AddCityCodes.CITY_ALREADY_ADDED or
-            response.code == AddCityCodes.NO_CONNECTION or
-            response.code == AddCityCodes.INTERNAL_SERVER_ERROR or
-            response.code == AddCityCodes.USER_NOT_FOUND or
-            response.code == AddCityCodes.CITY_IS_FUZZ or
-            response.code == AddCityCodes.CITY_NOT_EXIST):
+    if (response.code == ResponseCodes.CITY_ALREADY_ADDED or
+            response.code == ResponseCodes.NO_CONNECTION or
+            response.code == ResponseCodes.INTERNAL_ERROR or
+            response.code == ResponseCodes.USER_NOT_FOUND or
+            response.code == ResponseCodes.FUZZY_CITY or
+            response.code == ResponseCodes.INVALID_CITY):
         with suppress(TelegramBadRequest):
             if isinstance(callback_query.message, Message):
                 await callback_query.message.edit_text(text='Ошибки на стороне сервиса, попробуйте еще раз',
@@ -132,12 +138,16 @@ async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext) -
 
 @change_data_router.callback_query(ChangeDataStates.CITY_NAME_IS_FUZZY, F.data == 'deny')
 async def deny_city_variant(callback_query: CallbackQuery, state: FSMContext) -> None:
+    if not isinstance(callback_query.message, Message):
+        return
     await callback_query.message.edit_text(text='Выберите вариант', reply_markup=keyboards.get_change_data_keyboard())
     await state.set_state(MenuStates.CHANGE_DATA)
 
 
 @change_data_router.callback_query(MenuStates.CHANGE_DATA, F.data == 'remove_city')
-async def show_cities_as_inline_keyboard(callback_query: CallbackQuery, state: FSMContext):
+async def show_cities_as_inline_keyboard(callback_query: CallbackQuery, state: FSMContext) -> None:
+    if not isinstance(callback_query.message, Message):
+        return
     user_data = await state.get_data()
 
     await callback_query.message.edit_text(text='Выберите город, который нужно удалить',
@@ -146,14 +156,16 @@ async def show_cities_as_inline_keyboard(callback_query: CallbackQuery, state: F
 
 
 @change_data_router.callback_query(ChangeDataStates.REMOVE_CITY, F.data == 'back')
-async def return_from_remove(callback_query: CallbackQuery, state: FSMContext):
+async def return_from_remove(callback_query: CallbackQuery, state: FSMContext) -> None:
+    if not isinstance(callback_query.message, Message):
+        return
     await callback_query.message.edit_text(text='Выберите действие',
                                            reply_markup=keyboards.get_change_data_keyboard())
     await state.set_state(MenuStates.CHANGE_DATA)
 
 
 @change_data_router.callback_query(ChangeDataStates.REMOVE_CITY, F.data != 'back')
-async def remove_city(callback_query: CallbackQuery, state: FSMContext):
+async def remove_city(callback_query: CallbackQuery, state: FSMContext) -> None:
     city = callback_query.data
     bot = callback_query.bot
     if bot is None or callback_query.message is None:
@@ -178,7 +190,7 @@ async def remove_city(callback_query: CallbackQuery, state: FSMContext):
 
 
 @change_data_router.callback_query(MenuStates.CHANGE_DATA, F.data == 'add_playlist')
-async def show_change_data_variants(callback_query: CallbackQuery, state: FSMContext) -> None:
+async def add_one_playlist_show_msg(callback_query: CallbackQuery, state: FSMContext) -> None:
     bot = callback_query.bot
     if bot is None or callback_query is None or callback_query.message is None:
         return
@@ -190,9 +202,11 @@ async def show_change_data_variants(callback_query: CallbackQuery, state: FSMCon
 
 
 @change_data_router.message(ChangeDataStates.ENTER_NEW_PLAYLIST, (F.content_type == ContentType.TEXT
-                                                              and F.text[0] != '/'))
+                                                                  and F.text[0] != '/'))
 async def add_one_playlist(message: Message, state: FSMContext) -> None:
     bot = message.bot
+    if bot is None:
+        return
     await bot.delete_message(message.chat.id, message.message_id - 1)
     link = message.text
     if link is None:
@@ -210,7 +224,7 @@ async def add_one_playlist(message: Message, state: FSMContext) -> None:
         print('Некорректный код')
         return
 
-    if response.code == AddPlaylistCodes.SUCCESS:
+    if response.code == ResponseCodes.SUCCESS:
         user_data = await state.get_data()
         if link in user_data['links']:
             await message.answer('Ссылка уже была добавлена')
@@ -218,12 +232,12 @@ async def add_one_playlist(message: Message, state: FSMContext) -> None:
             await message.answer(text='Ссылка успешно добавлена')
             user_data['links'].append(link)
 
-    if response.code == AddPlaylistCodes.INVALID_LINK:
+    if response.code == ResponseCodes.INVALID_TRACKS_LIST:
         await message.answer(text='Ссылка недействительна')
-    if (response.code == AddPlaylistCodes.USER_NOT_FOUND or
-            response.code == AddPlaylistCodes.INTERNAL_SERVER_ERROR or
-            response.code == AddPlaylistCodes.NO_CONNECTION or
-            response.code == AddPlaylistCodes.LINK_ALREADY_ADDED):
+    if (response.code == ResponseCodes.USER_NOT_FOUND or
+            response.code == ResponseCodes.INTERNAL_ERROR or
+            response.code == ResponseCodes.NO_CONNECTION or
+            response.code == ResponseCodes.TRACKS_LIST_ALREADY_ADDED):
         await message.answer(text='Ошибка на стороне сервиса, попробуйте позже')
 
     await message.answer(text='Выберите вариант', reply_markup=keyboards.get_change_data_keyboard())
@@ -231,13 +245,18 @@ async def add_one_playlist(message: Message, state: FSMContext) -> None:
 
 
 @change_data_router.callback_query(ChangeDataStates.ENTER_NEW_PLAYLIST, F.data == 'cancel')
-async def cancel_add_city(callback_query: CallbackQuery, state: FSMContext) -> None:
+async def return_from_add_city(callback_query: CallbackQuery, state: FSMContext) -> None:
+    if not isinstance(callback_query.message, Message):
+        return
     await callback_query.message.edit_text(text='Выберите действие', reply_markup=keyboards.get_change_data_keyboard())
     await state.set_state(MenuStates.CHANGE_DATA)
 
 
 @change_data_router.callback_query(MenuStates.CHANGE_DATA, F.data == 'remove_playlist')
-async def show_playlists_as_inline_keyboard(callback_query: CallbackQuery, state: FSMContext):
+async def show_playlists_as_inline_keyboard(callback_query: CallbackQuery, state: FSMContext) -> None:
+    if not isinstance(callback_query.message, Message):
+        return
+
     user_data = await state.get_data()
 
     await callback_query.message.edit_text(text='Выберите ссылку, которую нужно удалить',
@@ -247,14 +266,16 @@ async def show_playlists_as_inline_keyboard(callback_query: CallbackQuery, state
 
 
 @change_data_router.callback_query(ChangeDataStates.REMOVE_PLAYLIST, F.data == 'back')
-async def return_from_remove(callback_query: CallbackQuery, state: FSMContext):
+async def return_from_remove_playlist(callback_query: CallbackQuery, state: FSMContext) -> None:
+    if not isinstance(callback_query.message, Message):
+        return
     await callback_query.message.edit_text(text='Выберите действие',
                                            reply_markup=keyboards.get_change_data_keyboard())
     await state.set_state(MenuStates.CHANGE_DATA)
 
 
 @change_data_router.callback_query(ChangeDataStates.REMOVE_PLAYLIST, F.data != 'back')
-async def remove_playlist(callback_query: CallbackQuery, state: FSMContext):
+async def remove_playlist(callback_query: CallbackQuery, state: FSMContext) -> None:
     playlist = callback_query.data
     bot = callback_query.bot
     if bot is None or callback_query.message is None:

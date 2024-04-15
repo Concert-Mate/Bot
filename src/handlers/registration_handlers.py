@@ -5,10 +5,10 @@ from aiogram.enums import ContentType
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery, InaccessibleMessage
+from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery
 
 from src import keyboards
-from src.api_service import add_city, AddCityCodes, AddPlaylistCodes, add_playlist
+from src.user_service_agent import add_city, add_playlist, ResponseCodes
 from src.states import RegistrationStates, MenuStates
 
 registration_router = Router()
@@ -81,23 +81,23 @@ async def add_first_city_from_text(message: Message, state: FSMContext) -> None:
         print('Некорректный код')
         return
 
-    if response.code == AddCityCodes.SUCCESS:
+    if response.code == ResponseCodes.SUCCESS:
         await __add_city(city, True, state)
         await message.answer(text=f'Город {city} добавлен успешно.', reply_markup=ReplyKeyboardRemove())
         await state.update_data(is_first_city=False)
         await message.answer(text=__after_first_city_msg, reply_markup=keyboards.get_skip_add_cities_markup())
         await state.set_state(state=RegistrationStates.ADD_CITIES_IN_LOOP)
         return
-    if response.code == AddCityCodes.CITY_NOT_EXIST:
+    if response.code == ResponseCodes.INVALID_CITY:
         await message.answer(text='Некорректно введен город или его не существует')
         return
-    if response.code == AddCityCodes.CITY_IS_FUZZ:
+    if response.code == ResponseCodes.FUZZY_CITY:
         await __send_fuzz_variant_message(city, message, state)
         return
-    if (response.code == AddCityCodes.CITY_ALREADY_ADDED or
-            response.code == AddCityCodes.NO_CONNECTION or
-            response.code == AddCityCodes.INTERNAL_SERVER_ERROR or
-            response.code == AddCityCodes.USER_NOT_FOUND):
+    if (response.code == ResponseCodes.CITY_ALREADY_ADDED or
+            response.code == ResponseCodes.NO_CONNECTION or
+            response.code == ResponseCodes.INTERNAL_ERROR or
+            response.code == ResponseCodes.USER_NOT_FOUND):
         await message.answer(text='Ошибки на стороне сервиса, попробуйте еще раз')
 
 
@@ -128,7 +128,7 @@ async def add_city_in_loop(message: Message, state: FSMContext) -> None:
         print('Некорректный код')
         return
 
-    if response.code == AddCityCodes.SUCCESS:
+    if response.code == ResponseCodes.SUCCESS:
         is_city_was_added = await __add_city(city, False, state)
 
         if not is_city_was_added:
@@ -138,16 +138,16 @@ async def add_city_in_loop(message: Message, state: FSMContext) -> None:
         await message.answer(text=f'Город {city} добавлен успешно.')
         return
 
-    if response.code == AddCityCodes.CITY_NOT_EXIST:
+    if response.code == ResponseCodes.INVALID_CITY:
         await message.answer(text='Некорректно введен город или его не существует')
         return
-    if response.code == AddCityCodes.CITY_IS_FUZZ:
+    if response.code == ResponseCodes.FUZZY_CITY:
         await __send_fuzz_variant_message(city, message, state)
         return
-    if (response.code == AddCityCodes.CITY_ALREADY_ADDED or
-            response.code == AddCityCodes.NO_CONNECTION or
-            response.code == AddCityCodes.INTERNAL_SERVER_ERROR or
-            response.code == AddCityCodes.USER_NOT_FOUND):
+    if (response.code == ResponseCodes.CITY_ALREADY_ADDED or
+            response.code == ResponseCodes.NO_CONNECTION or
+            response.code == ResponseCodes.INTERNAL_ERROR or
+            response.code == ResponseCodes.USER_NOT_FOUND):
         await message.answer(text='Ошибки на стороне сервиса, попробуйте еще раз')
 
 
@@ -164,7 +164,7 @@ async def apply_city_callback(callback_query: CallbackQuery, state: FSMContext) 
         print('Некорректный код')
         return
     await callback_query.answer()
-    if response.code == AddCityCodes.SUCCESS:
+    if response.code == ResponseCodes.SUCCESS:
         is_city_was_added = await __add_city(city, user_data['is_first_city'], state)
         await bot.edit_message_reply_markup(chat_id=callback_query.message.chat.id,
                                             message_id=callback_query.message.message_id,
@@ -192,12 +192,12 @@ async def apply_city_callback(callback_query: CallbackQuery, state: FSMContext) 
                                text='Город добавлен',
                                reply_markup=keyboards.get_skip_add_cities_markup())
 
-    if (response.code == AddCityCodes.CITY_ALREADY_ADDED or
-            response.code == AddCityCodes.NO_CONNECTION or
-            response.code == AddCityCodes.INTERNAL_SERVER_ERROR or
-            response.code == AddCityCodes.USER_NOT_FOUND or
-            response.code == AddCityCodes.CITY_IS_FUZZ or
-            response.code == AddCityCodes.CITY_NOT_EXIST):
+    if (response.code == ResponseCodes.CITY_ALREADY_ADDED or
+            response.code == ResponseCodes.NO_CONNECTION or
+            response.code == ResponseCodes.INTERNAL_ERROR or
+            response.code == ResponseCodes.USER_NOT_FOUND or
+            response.code == ResponseCodes.FUZZY_CITY or
+            response.code == ResponseCodes.INVALID_CITY):
         with suppress(TelegramBadRequest):
             if isinstance(callback_query.message, Message):
                 await callback_query.message.edit_text(text='Ошибки на стороне сервиса, попробуйте еще раз',
@@ -251,7 +251,7 @@ async def add_link(message: Message, state: FSMContext) -> None:
     except ValueError:
         print('Некорректный код')
         return
-    if response.code == AddPlaylistCodes.SUCCESS:
+    if response.code == ResponseCodes.SUCCESS:
         user_data = await state.get_data()
         if 'links' not in user_data.keys():
             await __add_link(link, True, state)
@@ -265,11 +265,11 @@ async def add_link(message: Message, state: FSMContext) -> None:
             return
 
         await message.answer(text='Ссылка успешно добавлена')
-    if response.code == AddPlaylistCodes.INVALID_LINK:
+    if response.code == ResponseCodes.INVALID_TRACKS_LIST:
         await message.answer(text='Ссылка недействительна')
         return
-    if (response.code == AddPlaylistCodes.USER_NOT_FOUND or
-            response.code == AddPlaylistCodes.INTERNAL_SERVER_ERROR or
-            response.code == AddPlaylistCodes.NO_CONNECTION or
-            response.code == AddPlaylistCodes.LINK_ALREADY_ADDED):
+    if (response.code == ResponseCodes.USER_NOT_FOUND or
+            response.code == ResponseCodes.INTERNAL_ERROR or
+            response.code == ResponseCodes.NO_CONNECTION or
+            response.code == ResponseCodes.TRACKS_LIST_ALREADY_ADDED):
         await message.answer(text='Ошибка на стороне сервиса, попробуйте позже')
