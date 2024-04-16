@@ -32,14 +32,20 @@ async def show_change_data_variants(callback_query: CallbackQuery, state: FSMCon
 
 @change_data_router.callback_query(MenuStates.CHANGE_DATA, F.data == 'add_city')
 async def add_city_text_send(callback_query: CallbackQuery, state: FSMContext) -> None:
-    bot = callback_query.bot
-    if bot is None or callback_query is None or callback_query.message is None:
+    if not isinstance(callback_query.message, Message):
         return
-
-    await bot.edit_message_text(chat_id=callback_query.message.chat.id, message_id=callback_query.message.message_id,
-                                text='Введите название города',
-                                reply_markup=keyboards.get_cancel_keyboard())
+    await callback_query.message.edit_text(text='Введите название города', reply_markup=keyboards.get_cancel_keyboard())
     await state.set_state(ChangeDataStates.ENTER_NEW_CITY)
+
+
+@change_data_router.message(MenuStates.CHANGE_DATA)
+async def resent(message: Message, state: FSMContext) -> None:
+    bot = message.bot
+    if bot is None:
+        return
+    await bot.delete_message(chat_id=message.chat.id, message_id=(message.message_id - 1))
+    await bot.send_message(chat_id=message.chat.id, text='Выберите действие',
+                           reply_markup=keyboards.get_change_data_keyboard())
 
 
 @change_data_router.callback_query(ChangeDataStates.ENTER_NEW_CITY, F.data == 'cancel')
@@ -69,8 +75,8 @@ async def add_one_city(message: Message, state: FSMContext) -> None:
 
     try:
         response = add_city(message.from_user.id, city)
-    except ValueError:
-        print('Некорректный код')
+    except ValueError as e:
+        print(e)
         return
 
     user_data = await state.get_data()
@@ -105,8 +111,8 @@ async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext) -
         return
     try:
         response = add_city(callback_query.from_user.id, city)
-    except ValueError:
-        print('Некорректный код')
+    except ValueError as e:
+        print(e)
         return
     await callback_query.answer()
 
@@ -220,8 +226,8 @@ async def add_one_playlist(message: Message, state: FSMContext) -> None:
 
     try:
         response = add_playlist(message.from_user.id, link)
-    except ValueError:
-        print('Некорректный код')
+    except ValueError as e:
+        print(e)
         return
 
     if response.code == ResponseCodes.SUCCESS:
@@ -245,7 +251,7 @@ async def add_one_playlist(message: Message, state: FSMContext) -> None:
 
 
 @change_data_router.callback_query(ChangeDataStates.ENTER_NEW_PLAYLIST, F.data == 'cancel')
-async def return_from_add_city(callback_query: CallbackQuery, state: FSMContext) -> None:
+async def return_from_add_playlist(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
     await callback_query.message.edit_text(text='Выберите действие', reply_markup=keyboards.get_change_data_keyboard())

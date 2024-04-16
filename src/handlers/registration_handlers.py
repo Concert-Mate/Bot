@@ -77,8 +77,8 @@ async def add_first_city_from_text(message: Message, state: FSMContext) -> None:
         return
     try:
         response = add_city(user_id, city)
-    except ValueError:
-        print('Некорректный код')
+    except ValueError as e:
+        print(e)
         return
 
     if response.code == ResponseCodes.SUCCESS:
@@ -124,8 +124,8 @@ async def add_city_in_loop(message: Message, state: FSMContext) -> None:
 
     try:
         response = add_city(message.from_user.id, city)
-    except ValueError:
-        print('Некорректный код')
+    except ValueError as e:
+        print(e)
         return
 
     if response.code == ResponseCodes.SUCCESS:
@@ -160,8 +160,8 @@ async def apply_city_callback(callback_query: CallbackQuery, state: FSMContext) 
         return
     try:
         response = add_city(callback_query.from_user.id, city)
-    except ValueError:
-        print('Некорректный код')
+    except ValueError as e:
+        print(e)
         return
     await callback_query.answer()
     if response.code == ResponseCodes.SUCCESS:
@@ -248,8 +248,8 @@ async def add_link(message: Message, state: FSMContext) -> None:
 
     try:
         response = add_playlist(message.from_user.id, link)
-    except ValueError:
-        print('Некорректный код')
+    except ValueError as e:
+        print(e)
         return
     if response.code == ResponseCodes.SUCCESS:
         user_data = await state.get_data()

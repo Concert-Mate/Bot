@@ -15,6 +15,8 @@ async def main() -> None:
         print('bot token not')
         return
     bot = Bot(token=token, default=DefaultBotProperties())
+    # WARNING!!! ДРОПАЕТ ВСЕ СООБЩЕНИЯ, КОТОРЫЕ ПРИШЛИ БОТУ, ПОКА ОН БЫЛ ВЫКЛЮЧЕН
+    #await bot.delete_webhook(drop_pending_updates=True)
     dp = Dispatcher()
     dp.include_router(handlers.common_router)
     dp.include_router(handlers.registration_router)
