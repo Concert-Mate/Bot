@@ -101,7 +101,7 @@ async def add_first_city_from_text(message: Message, state: FSMContext) -> None:
         await message.answer(text='Ошибки на стороне сервиса, попробуйте еще раз')
 
 
-@registration_router.message(RegistrationStates.ADD_CITIES_IN_LOOP, F.text.in_(keyboards.skip_add_cities_texts))
+@registration_router.message(RegistrationStates.ADD_CITIES_IN_LOOP, F.text == keyboards.skip_add_cities_texts)
 @registration_router.message(RegistrationStates.ADD_CITIES_IN_LOOP, Command('skip'))
 async def skip_add_cities(message: Message, state: FSMContext) -> None:
     await message.answer(text='Введите ссылку, откуда мы будем выбирать ваших любимых исполнителей',
@@ -226,7 +226,7 @@ async def deny_city_variant(callback_query: CallbackQuery, state: FSMContext) ->
     await state.set_state(RegistrationStates.ADD_CITIES_IN_LOOP)
 
 
-@registration_router.message(RegistrationStates.ADD_LINK, F.text.in_(keyboards.skip_add_links_texts))
+@registration_router.message(RegistrationStates.ADD_LINK, F.text == keyboards.skip_add_links_texts)
 @registration_router.message(RegistrationStates.ADD_LINK, Command('skip'))
 async def skip_add_links(message: Message, state: FSMContext) -> None:
     await message.answer(text='Регистрация окончена', reply_markup=ReplyKeyboardRemove())
@@ -253,7 +253,7 @@ async def add_link(message: Message, state: FSMContext) -> None:
         return
     if response.code == ResponseCodes.SUCCESS:
         user_data = await state.get_data()
-        if 'links' not in user_data.keys():
+        if len(user_data['links']) == 0:
             await __add_link(link, True, state)
             await message.answer(text='Ссылка успешно добавлена')
             await message.answer(text=__after_first_link_msg, reply_markup=keyboards.get_skip_add_links_markup())

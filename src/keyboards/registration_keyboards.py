@@ -12,15 +12,15 @@ def get_location_keyboard_markup() -> ReplyKeyboardMarkup:
     return builder.as_markup(resize_keyboard=True)
 
 
-skip_add_cities_texts = ['Прекратить ввод городов']
+skip_add_cities_texts = 'Прекратить ввод городов'
 
-skip_add_links_texts = ['Прекратить ввод ссылок']
+skip_add_links_texts = 'Прекратить ввод ссылок'
 
 
 def get_skip_add_cities_markup() -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     builder.row(types.KeyboardButton(
-        text=skip_add_cities_texts[0],
+        text=skip_add_cities_texts,
     ))
     return builder.as_markup(resize_keyboard=True)
 
@@ -28,7 +28,7 @@ def get_skip_add_cities_markup() -> ReplyKeyboardMarkup:
 def get_skip_add_links_markup() -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     builder.row(types.KeyboardButton(
-        text=skip_add_links_texts[0],
+        text=skip_add_links_texts,
     ))
     return builder.as_markup(resize_keyboard=True)
 

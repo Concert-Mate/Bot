@@ -23,6 +23,8 @@ async def command_start(message: Message, state: FSMContext) -> None:
         print('Некорректный код')
         return
     await state.update_data(notices_enabled=True)
+    await state.update_data(cities=[])
+    await state.update_data(links=[])
     if response.code == ResponseCodes.SUCCESS:
         await message.answer(text=f'Привет, {message.from_user.username},'
                                   f' поскольку вы в нашем боте еще не зарегистрированы - самое время сделать это.'
@@ -37,8 +39,7 @@ async def command_start(message: Message, state: FSMContext) -> None:
                              reply_markup=ReplyKeyboardRemove())
         await state.set_state(MenuStates.MAIN_MENU)
         await state.update_data(is_first_city=False)
-        await state.update_data(cities=[])
-        await state.update_data(links=[])
+
         await message.answer('Выберите действие', reply_markup=get_main_menu_keyboard())
         return
     if response.code == ResponseCodes.NO_CONNECTION or response.code == ResponseCodes.INTERNAL_ERROR:
