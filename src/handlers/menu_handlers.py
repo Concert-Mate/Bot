@@ -31,7 +31,7 @@ async def show_faq_variants(callback_query: CallbackQuery, state: FSMContext) ->
 async def show_main_info(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
-    await callback_query.message.edit_text('ПРОДАМ ГАРАЖ т.79631964002',
+    await callback_query.message.edit_text('Информация',
                                            reply_markup=keyboards.get_back_keyboard())
     await state.set_state(MenuStates.FAQ_DEAD_END)
 
