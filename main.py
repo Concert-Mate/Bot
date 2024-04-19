@@ -1,21 +1,40 @@
 import asyncio
 import logging
 import sys
-from os import getenv
+import threading
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 
 import handlers
+from broker import Broker, RabbitMQBroker, BrokerEvent, BrokerException
+from settings import settings
+
+
+def broker_listener_task(broker: Broker):
+    logging.info('Starting listening broker ...')
+    broker.start_listening()
+
+
+def callback(event: BrokerEvent):
+    print(f'Received event:\n{event}')
 
 
 async def main() -> None:
-    token = getenv('BOT_TOKEN')
-    if token is None:
-        print('bot token not')
-        return
-    bot = Bot(token=token, default=DefaultBotProperties())
-    # WARNING!!! ДРОПАЕТ ВСЕ СООБЩЕНИЯ, КОТОРЫЕ ПРИШЛИ БОТУ, ПОКА ОН БЫЛ ВЫКЛЮЧЕН
+    try:
+        rabbitmq_broker: Broker = RabbitMQBroker(
+            queue_name=settings.rabbitmq_queue,
+            user_name=settings.rabbitmq_user,
+            password=settings.rabbitmq_password
+        )
+        rabbitmq_broker.add_callback(callback)
+        logging.info('Callback added')
+        broker_listener = threading.Thread(target=broker_listener_task, args=(rabbitmq_broker,))
+        broker_listener.start()
+    except BrokerException as e:
+        logging.warning(e)
+
+    bot = Bot(token=settings.bot_token, default=DefaultBotProperties())
     dp = Dispatcher()
     dp.include_router(handlers.common_router)
     dp.include_router(handlers.registration_router)
