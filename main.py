@@ -11,12 +11,12 @@ from broker import Broker, RabbitMQBroker, BrokerEvent, BrokerException
 from settings import settings
 
 
-def broker_listener_task(broker: Broker):
+def broker_listener_task(broker: Broker) -> None:
     logging.info('Starting listening broker ...')
     broker.start_listening()
 
 
-def callback(event: BrokerEvent):
+def callback(event: BrokerEvent) -> None:
     print(f'Received event:\n{event}')
 
 
