@@ -6,6 +6,8 @@ class Settings(BaseSettings):
     rabbitmq_user: str
     rabbitmq_password: str
     rabbitmq_queue: str
+    rabbitmq_host: str = 'localhost'
+    rabbitmq_port: int = 5672
 
     model_config = SettingsConfigDict(env_file=".env")
 

@@ -12,7 +12,7 @@ class RabbitMQBroker(Broker):
     __channel: BlockingChannel
     __queue_name: str
 
-    def __init__(self, queue_name: str, user_name: str, password: str, host: str = 'localhost', port: int = 5672):
+    def __init__(self, queue_name: str, user_name: str, password: str, host: str, port: int):
         self.__queue_name = queue_name
         credentials = PlainCredentials(
             username=user_name,

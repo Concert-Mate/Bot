@@ -25,7 +25,9 @@ async def main() -> None:
         rabbitmq_broker: Broker = RabbitMQBroker(
             queue_name=settings.rabbitmq_queue,
             user_name=settings.rabbitmq_user,
-            password=settings.rabbitmq_password
+            password=settings.rabbitmq_password,
+            host=settings.rabbitmq_host,
+            port=settings.rabbitmq_port,
         )
         rabbitmq_broker.add_callback(callback)
         logging.info('Callback added')
