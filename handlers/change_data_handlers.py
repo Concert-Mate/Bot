@@ -8,8 +8,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 import keyboards
-from user_service_agent import add_city, add_playlist, ResponseCodes
 from states import MenuStates, ChangeDataStates
+from user_service_agent import add_city, add_playlist, ResponseCodes
 
 change_data_router = Router()
 

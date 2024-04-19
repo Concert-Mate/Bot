@@ -6,7 +6,7 @@ from os import getenv
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 
-import handlers as handlers
+import handlers
 
 
 async def main() -> None:
@@ -16,7 +16,6 @@ async def main() -> None:
         return
     bot = Bot(token=token, default=DefaultBotProperties())
     # WARNING!!! ДРОПАЕТ ВСЕ СООБЩЕНИЯ, КОТОРЫЕ ПРИШЛИ БОТУ, ПОКА ОН БЫЛ ВЫКЛЮЧЕН
-    #await bot.delete_webhook(drop_pending_updates=True)
     dp = Dispatcher()
     dp.include_router(handlers.common_router)
     dp.include_router(handlers.registration_router)
