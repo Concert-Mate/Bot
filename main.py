@@ -6,7 +6,7 @@ from os import getenv
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 
-import src.handlers as handlers
+import handlers as handlers
 
 
 async def main() -> None:
