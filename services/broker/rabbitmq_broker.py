@@ -1,5 +1,4 @@
 import logging
-from json import loads
 from typing import Callable, Coroutine, Any
 
 from aio_pika.abc import AbstractChannel, AbstractQueue
@@ -55,4 +54,4 @@ class RabbitMQBroker(Broker):
 
     @staticmethod
     def __parse_event(bytez: bytes) -> BrokerEvent:
-        return BrokerEvent(**loads(bytez))
+        return BrokerEvent.model_validate_json(bytez.decode())
