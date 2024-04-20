@@ -11,31 +11,35 @@ from broker import Broker, RabbitMQBroker, BrokerEvent, BrokerException
 from settings import settings
 
 
-def broker_listener_task(broker: Broker) -> None:
-    logging.info('Starting listening broker ...')
-    broker.start_listening()
+async def on_message(event: BrokerEvent) -> None:
+    logging.info(f'Received event for user {event.user.telegram_id} with {len(event.concerts)} concert(s)')
 
 
-def callback(event: BrokerEvent) -> None:
-    print(f'Received event:\n{event}')
+async def on_error(exception: Exception) -> None:
+    logging.error('An error with broker occurred: %s' % exception)
 
 
-async def main() -> None:
+async def broker_listening() -> None:
     try:
-        rabbitmq_broker: Broker = RabbitMQBroker(
+        rabbitmq_broker: Broker = RabbitMQBroker()
+        await rabbitmq_broker.connect(
             queue_name=settings.rabbitmq_queue,
             user_name=settings.rabbitmq_user,
             password=settings.rabbitmq_password,
             host=settings.rabbitmq_host,
             port=settings.rabbitmq_port,
         )
-        rabbitmq_broker.add_callback(callback)
-        logging.info('Callback added')
-        broker_listener = threading.Thread(target=broker_listener_task, args=(rabbitmq_broker,))
-        broker_listener.start()
+
+        logging.info('Starting listening broker ...')
+        await rabbitmq_broker.start_listening(
+            on_message_callback=on_message,
+            on_error_callback=on_error,
+        )
     except BrokerException as e:
         logging.warning(e)
 
+
+async def main() -> None:
     bot = Bot(token=settings.bot_token, default=DefaultBotProperties())
     dp = Dispatcher()
     dp.include_router(handlers.common_router)
@@ -47,4 +51,5 @@ async def main() -> None:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    threading.Thread(target=asyncio.run, args=(broker_listening(),)).start()
     asyncio.run(main())

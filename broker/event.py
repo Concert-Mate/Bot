@@ -1,8 +1,8 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from model import Concert, User
 
 
 class BrokerEvent(BaseModel):
     user: User
-    concerts: list[Concert] = Field(min_length=1)
+    concerts: list[Concert]

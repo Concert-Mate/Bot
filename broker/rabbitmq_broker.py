@@ -1,50 +1,58 @@
+import logging
 from json import loads
-from typing import Callable
+from typing import Callable, Coroutine, Any
 
-from pika import PlainCredentials, ConnectionParameters, BlockingConnection, BasicProperties
-from pika.adapters.blocking_connection import BlockingChannel
-from pika.spec import Basic
+from aio_pika.abc import AbstractChannel, AbstractQueue
+from aio_pika.connection import Connection
+from yarl import URL
 
-from broker import Broker, BrokerException, BrokerEvent
+from broker import Broker, BrokerEvent, BrokerException
 
 
 class RabbitMQBroker(Broker):
-    __channel: BlockingChannel
+    __connection: Connection
     __queue_name: str
 
-    def __init__(self, queue_name: str, user_name: str, password: str, host: str, port: int):
-        self.__queue_name = queue_name
-        credentials = PlainCredentials(
-            username=user_name,
-            password=password
-        )
-        parameters = ConnectionParameters(host=host, port=port, credentials=credentials)
+    def __init__(self) -> None:
+        logging.getLogger('aio_pika').setLevel(logging.DEBUG)
+
+    async def connect(
+            self,
+            queue_name: str,
+            user_name: str,
+            password: str,
+            host: str,
+            port: int
+    ) -> None:
+        try:
+            url: URL = URL(f'amqp://{user_name}:{password}@{host}:{port}/')
+            self.__connection = Connection(url=url)
+        except Exception as e:
+            raise BrokerException(f'Invalid connection params') from e
 
         try:
-            connection = BlockingConnection(parameters)
-            self.__channel = connection.channel()
+            await self.__connection.connect()
+            self.__queue_name = queue_name
         except Exception as e:
-            raise BrokerException('Cannot connect to RabbitMQ') from e
+            raise BrokerException(f'Cannot connect to {self.__connection}') from e
 
-    def add_callback(self, on_message_callback: Callable[[BrokerEvent], None]) -> None:
-        def wrapper(_: BlockingChannel, __: Basic.Deliver, ___: BasicProperties, bytez: bytes) -> None:
-            try:
-                message: str = bytez.decode()
-                event: BrokerEvent = BrokerEvent(**loads(message))
-                on_message_callback(event)
-            except UnicodeDecodeError as e:
-                raise BrokerException('Received invalid message') from e
-            except Exception as e:
-                raise BrokerException('Cannot parse message') from e
-
-        self.__channel.basic_consume(
-            queue=self.__queue_name,
-            on_message_callback=wrapper,
-            auto_ack=True
-        )
-
-    def start_listening(self) -> None:
+    async def start_listening(
+            self,
+            on_message_callback: Callable[[BrokerEvent], Coroutine[Any, Any, None]],
+            on_error_callback: Callable[[Exception], Coroutine[Any, Any, None]]
+    ) -> None:
         try:
-            self.__channel.start_consuming()
+            async with self.__connection as connection:
+                channel: AbstractChannel = await connection.channel()
+                queue: AbstractQueue = await channel.get_queue(name=self.__queue_name)
+
+                async for message in queue:
+                    event: BrokerEvent = RabbitMQBroker.__parse_event(message.body)
+                    await on_message_callback(event)
+                    await message.ack()
         except Exception as e:
-            raise BrokerException('Cannot start listening to RabbitMQ') from e
+            await on_error_callback(e)
+
+    @staticmethod
+    def __parse_event(bytez: bytes) -> BrokerEvent:
+        return BrokerEvent(**loads(bytez))
