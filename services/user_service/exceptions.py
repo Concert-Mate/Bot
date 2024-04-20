@@ -38,5 +38,5 @@ class TrackListNotAddedException(UserServiceException):
     pass
 
 
-class InvalidTrackException(UserServiceException):
+class InvalidTrackListException(UserServiceException):
     pass
