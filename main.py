@@ -7,7 +7,9 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 
 from bot import handlers
-from services.broker import Broker, RabbitMQBroker, BrokerEvent, BrokerException
+from services.broker import Broker, BrokerEvent, BrokerException
+from services.broker.impl.rabbitmq_broker import RabbitMQBroker
+from services.user_service import UserServiceAgent
 from services.user_service.impl.agent_impl import UserServiceAgentImpl
 from settings import settings
 
@@ -41,8 +43,7 @@ async def broker_listening() -> None:
 
 
 async def main() -> None:
-    bot = Bot(token=settings.bot_token, default=DefaultBotProperties())
-    agent = UserServiceAgentImpl(
+    agent: UserServiceAgent = UserServiceAgentImpl(
         user_service_host=settings.user_service_host,
         user_service_port=settings.user_service_port,
     )
