@@ -24,6 +24,7 @@ class Broker(ABC):
         :param port: port of broker
         :raises BrokerException: if connection fails
         """
+        pass
 
     @abstractmethod
     async def start_listening(
@@ -37,3 +38,4 @@ class Broker(ABC):
         :param on_message_callback: coroutine that will be awaited when a message is received
         :param on_error_callback: coroutine that will be awaited when an error occurs
         """
+        pass

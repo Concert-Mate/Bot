@@ -41,6 +41,12 @@ async def broker_listening() -> None:
 
 async def main() -> None:
     bot = Bot(token=settings.bot_token, default=DefaultBotProperties())
+    agent = UserServiceAgentImpl(
+        user_service_host=settings.user_service_host,
+        user_service_port=settings.user_service_port,
+    )
+
+    bot = Bot(token=settings.bot_token, default=DefaultBotProperties())
     dp = Dispatcher()
     dp.include_router(handlers.common_router)
     dp.include_router(handlers.registration_router)
