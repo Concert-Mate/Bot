@@ -7,9 +7,9 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery
 
-import keyboards
-from states import RegistrationStates, MenuStates
-from user_service_agent import add_city, add_playlist, ResponseCodes
+from bot import keyboards
+from bot.states import RegistrationStates, MenuStates
+from services.user_service_agent import add_city, add_playlist, ResponseCodes
 
 registration_router = Router()
 

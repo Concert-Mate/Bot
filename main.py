@@ -6,8 +6,8 @@ import threading
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 
-import handlers
-from broker import Broker, RabbitMQBroker, BrokerEvent, BrokerException
+from bot import handlers
+from services.broker import Broker, RabbitMQBroker, BrokerEvent, BrokerException
 from settings import settings
 
 

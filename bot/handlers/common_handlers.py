@@ -3,9 +3,9 @@ from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, ReplyKeyboardRemove
 
-from keyboards import get_location_keyboard_markup, get_main_menu_keyboard
-from states import RegistrationStates, MenuStates
-from user_service_agent import register_user, ResponseCodes
+from bot.keyboards import get_location_keyboard_markup, get_main_menu_keyboard
+from bot.states import RegistrationStates, MenuStates
+from services.user_service_agent import register_user, ResponseCodes
 
 common_router = Router()
 

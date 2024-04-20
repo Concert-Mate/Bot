@@ -6,7 +6,7 @@ from aio_pika.abc import AbstractChannel, AbstractQueue
 from aio_pika.connection import Connection
 from yarl import URL
 
-from broker import Broker, BrokerEvent, BrokerException
+from services.broker import Broker, BrokerEvent, BrokerException
 
 
 class RabbitMQBroker(Broker):
