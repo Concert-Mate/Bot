@@ -9,7 +9,7 @@ from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery
 
 from bot import keyboards
 from bot.states import RegistrationStates, MenuStates
-from services.user_service_agent import add_city, add_playlist, ResponseCodes
+from services.user_service import UserServiceAgent
 
 registration_router = Router()
 

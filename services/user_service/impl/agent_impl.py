@@ -1,8 +1,19 @@
+import aiohttp
+
 from model import Concert
-from .agent import UserServiceAgent
+from services.user_service.agent import UserServiceAgent
 
 
 class UserServiceAgentImpl(UserServiceAgent):
+    __session: aiohttp.ClientSession
+
+    def __init__(self, user_service_host: str, user_service_port: int) -> None:
+        base_url: str = f'http://{user_service_host}:{user_service_port}/'
+        self.__session = aiohttp.ClientSession(base_url=base_url)
+
+    async def terminate(self) -> None:
+        await self.__session.close()
+
     async def create_user(self, telegram_id: int) -> None:
         pass
 

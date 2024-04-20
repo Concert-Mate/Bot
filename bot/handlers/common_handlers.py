@@ -5,7 +5,7 @@ from aiogram.types import Message, ReplyKeyboardRemove
 
 from bot.keyboards import get_location_keyboard_markup, get_main_menu_keyboard
 from bot.states import RegistrationStates, MenuStates
-from services.user_service_agent import register_user, ResponseCodes
+from services.user_service import UserServiceAgent
 
 common_router = Router()
 

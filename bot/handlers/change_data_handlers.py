@@ -9,7 +9,7 @@ from aiogram.types import CallbackQuery, Message
 
 from bot import keyboards
 from bot.states import MenuStates, ChangeDataStates
-from services.user_service_agent import add_city, add_playlist, ResponseCodes
+from services.user_service import UserServiceAgent
 
 change_data_router = Router()
 
@@ -60,86 +60,86 @@ async def cancel_add_city(callback_query: CallbackQuery, state: FSMContext) -> N
                                                               and F.text[0] != '/'))
 async def add_one_city(message: Message, state: FSMContext) -> None:
     bot = message.bot
-    if bot is None:
-        return
-    await bot.delete_message(message.chat.id, message.message_id - 1)
-    city = message.text
-    if city is None:
-        await message.answer(text='Неверный формат текста')
-        return
-    if message.from_user is None:
-        return
-    user_id = message.from_user.id
-    if user_id is None:
-        return
-
-    try:
-        response = add_city(message.from_user.id, city)
-    except ValueError as e:
-        print(e)
-        return
-
-    user_data = await state.get_data()
-
-    if response.code == ResponseCodes.SUCCESS:
-        if city in user_data['cities']:
-            await message.answer(text='Город уже был добавлен')
-        else:
-            user_data['cities'].append(city)
-            await message.answer(text=f'Город {city} добавлен успешно.')
-    if response.code == ResponseCodes.INVALID_CITY:
-        await message.answer(text='Некорректно введен город или его не существует')
-    if response.code == ResponseCodes.FUZZY_CITY:
-        await __send_fuzz_variant_message(city, message, state)
-        return
-    if (response.code == ResponseCodes.CITY_ALREADY_ADDED or
-            response.code == ResponseCodes.NO_CONNECTION or
-            response.code == ResponseCodes.INTERNAL_ERROR or
-            response.code == ResponseCodes.USER_NOT_FOUND):
-        await message.answer(text='Ошибки на стороне сервиса, попробуйте еще раз')
-
-    await message.answer(text='Выберите вариант', reply_markup=keyboards.get_change_data_keyboard())
-    await state.set_state(MenuStates.CHANGE_DATA)
+    # if bot is None:
+    #     return
+    # await bot.delete_message(message.chat.id, message.message_id - 1)
+    # city = message.text
+    # if city is None:
+    #     await message.answer(text='Неверный формат текста')
+    #     return
+    # if message.from_user is None:
+    #     return
+    # user_id = message.from_user.id
+    # if user_id is None:
+    #     return
+    #
+    # try:
+    #     response = add_city(message.from_user.id, city)
+    # except ValueError as e:
+    #     print(e)
+    #     return
+    #
+    # user_data = await state.get_data()
+    #
+    # if response.code == ResponseCodes.SUCCESS:
+    #     if city in user_data['cities']:
+    #         await message.answer(text='Город уже был добавлен')
+    #     else:
+    #         user_data['cities'].append(city)
+    #         await message.answer(text=f'Город {city} добавлен успешно.')
+    # if response.code == ResponseCodes.INVALID_CITY:
+    #     await message.answer(text='Некорректно введен город или его не существует')
+    # if response.code == ResponseCodes.FUZZY_CITY:
+    #     await __send_fuzz_variant_message(city, message, state)
+    #     return
+    # if (response.code == ResponseCodes.CITY_ALREADY_ADDED or
+    #         response.code == ResponseCodes.NO_CONNECTION or
+    #         response.code == ResponseCodes.INTERNAL_ERROR or
+    #         response.code == ResponseCodes.USER_NOT_FOUND):
+    #     await message.answer(text='Ошибки на стороне сервиса, попробуйте еще раз')
+    #
+    # await message.answer(text='Выберите вариант', reply_markup=keyboards.get_change_data_keyboard())
+    # await state.set_state(MenuStates.CHANGE_DATA)
 
 
 @change_data_router.callback_query(ChangeDataStates.CITY_NAME_IS_FUZZY, F.data == 'apply')
 async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext) -> None:
     user_data = await state.get_data()
-    city = user_data['variant']
-    bot = callback_query.bot
-    if bot is None or callback_query.message is None:
-        return
-    try:
-        response = add_city(callback_query.from_user.id, city)
-    except ValueError as e:
-        print(e)
-        return
-    await callback_query.answer()
-
-    if response.code == ResponseCodes.SUCCESS:
-        if city not in user_data['cities']:
-            user_data['cities'].append(city)
-            await bot.edit_message_text(chat_id=callback_query.message.chat.id, text='Город успешно добавлен',
-                                        message_id=callback_query.message.message_id, reply_markup=None)
-        else:
-            await bot.edit_message_text(chat_id=callback_query.message.chat.id, text='Город уже был добавлен',
-                                        message_id=callback_query.message.message_id, reply_markup=None)
-
-        await bot.send_message(chat_id=callback_query.message.chat.id, text='Выберите вариант',
-                               reply_markup=keyboards.get_change_data_keyboard())
-        await state.set_state(MenuStates.CHANGE_DATA)
-        return
-
-    if (response.code == ResponseCodes.CITY_ALREADY_ADDED or
-            response.code == ResponseCodes.NO_CONNECTION or
-            response.code == ResponseCodes.INTERNAL_ERROR or
-            response.code == ResponseCodes.USER_NOT_FOUND or
-            response.code == ResponseCodes.FUZZY_CITY or
-            response.code == ResponseCodes.INVALID_CITY):
-        with suppress(TelegramBadRequest):
-            if isinstance(callback_query.message, Message):
-                await callback_query.message.edit_text(text='Ошибки на стороне сервиса, попробуйте еще раз',
-                                                       reply_markup=keyboards.get_fuzz_variants_markup())
+    # city = user_data['variant']
+    # bot = callback_query.bot
+    # if bot is None or callback_query.message is None:
+    #     return
+    # try:
+    #     response = add_city(callback_query.from_user.id, city)
+    # except ValueError as e:
+    #     print(e)
+    #     return
+    # await callback_query.answer()
+    #
+    # if response.code == ResponseCodes.SUCCESS:
+    #     if city not in user_data['cities']:
+    #         user_data['cities'].append(city)
+    #         await bot.edit_message_text(chat_id=callback_query.message.chat.id, text='Город успешно добавлен',
+    #                                     message_id=callback_query.message.message_id, reply_markup=None)
+    #     else:
+    #         await bot.edit_message_text(chat_id=callback_query.message.chat.id, text='Город уже был добавлен',
+    #                                     message_id=callback_query.message.message_id, reply_markup=None)
+    #
+    #     await bot.send_message(chat_id=callback_query.message.chat.id, text='Выберите вариант',
+    #                            reply_markup=keyboards.get_change_data_keyboard())
+    #     await state.set_state(MenuStates.CHANGE_DATA)
+    #     return
+    #
+    # if (response.code == ResponseCodes.CITY_ALREADY_ADDED or
+    #         response.code == ResponseCodes.NO_CONNECTION or
+    #         response.code == ResponseCodes.INTERNAL_ERROR or
+    #         response.code == ResponseCodes.USER_NOT_FOUND or
+    #         response.code == ResponseCodes.FUZZY_CITY or
+    #         response.code == ResponseCodes.INVALID_CITY):
+    #     with suppress(TelegramBadRequest):
+    #         if isinstance(callback_query.message, Message):
+    #             await callback_query.message.edit_text(text='Ошибки на стороне сервиса, попробуйте еще раз',
+    #                                                    reply_markup=keyboards.get_fuzz_variants_markup())
 
 
 @change_data_router.callback_query(ChangeDataStates.CITY_NAME_IS_FUZZY, F.data == 'deny')
@@ -211,43 +211,43 @@ async def add_one_playlist_show_msg(callback_query: CallbackQuery, state: FSMCon
                                                                   and F.text[0] != '/'))
 async def add_one_playlist(message: Message, state: FSMContext) -> None:
     bot = message.bot
-    if bot is None:
-        return
-    await bot.delete_message(message.chat.id, message.message_id - 1)
-    link = message.text
-    if link is None:
-        await message.answer(text='Неверный формат текста')
-        return
-    if message.from_user is None:
-        return
-    user_id = message.from_user.id
-    if user_id is None:
-        return
-
-    try:
-        response = add_playlist(message.from_user.id, link)
-    except ValueError as e:
-        print(e)
-        return
-
-    if response.code == ResponseCodes.SUCCESS:
-        user_data = await state.get_data()
-        if link in user_data['links']:
-            await message.answer('Ссылка уже была добавлена')
-        else:
-            await message.answer(text='Ссылка успешно добавлена')
-            user_data['links'].append(link)
-
-    if response.code == ResponseCodes.INVALID_TRACKS_LIST:
-        await message.answer(text='Ссылка недействительна')
-    if (response.code == ResponseCodes.USER_NOT_FOUND or
-            response.code == ResponseCodes.INTERNAL_ERROR or
-            response.code == ResponseCodes.NO_CONNECTION or
-            response.code == ResponseCodes.TRACKS_LIST_ALREADY_ADDED):
-        await message.answer(text='Ошибка на стороне сервиса, попробуйте позже')
-
-    await message.answer(text='Выберите вариант', reply_markup=keyboards.get_change_data_keyboard())
-    await state.set_state(MenuStates.CHANGE_DATA)
+    # if bot is None:
+    #     return
+    # await bot.delete_message(message.chat.id, message.message_id - 1)
+    # link = message.text
+    # if link is None:
+    #     await message.answer(text='Неверный формат текста')
+    #     return
+    # if message.from_user is None:
+    #     return
+    # user_id = message.from_user.id
+    # if user_id is None:
+    #     return
+    #
+    # try:
+    #     response = add_playlist(message.from_user.id, link)
+    # except ValueError as e:
+    #     print(e)
+    #     return
+    #
+    # if response.code == ResponseCodes.SUCCESS:
+    #     user_data = await state.get_data()
+    #     if link in user_data['links']:
+    #         await message.answer('Ссылка уже была добавлена')
+    #     else:
+    #         await message.answer(text='Ссылка успешно добавлена')
+    #         user_data['links'].append(link)
+    #
+    # if response.code == ResponseCodes.INVALID_TRACKS_LIST:
+    #     await message.answer(text='Ссылка недействительна')
+    # if (response.code == ResponseCodes.USER_NOT_FOUND or
+    #         response.code == ResponseCodes.INTERNAL_ERROR or
+    #         response.code == ResponseCodes.NO_CONNECTION or
+    #         response.code == ResponseCodes.TRACKS_LIST_ALREADY_ADDED):
+    #     await message.answer(text='Ошибка на стороне сервиса, попробуйте позже')
+    #
+    # await message.answer(text='Выберите вариант', reply_markup=keyboards.get_change_data_keyboard())
+    # await state.set_state(MenuStates.CHANGE_DATA)
 
 
 @change_data_router.callback_query(ChangeDataStates.ENTER_NEW_PLAYLIST, F.data == 'cancel')

@@ -1,6 +1,5 @@
 __all__ = [
     'UserServiceAgent',
-    'UserServiceAgentImpl',
     'UserServiceException',
     'InternalErrorException',
     'UserAlreadyExistsException',
@@ -11,11 +10,10 @@ __all__ = [
     'FuzzyCityException',
     'TrackListAlreadyAddedException',
     'TrackListNotAddedException',
-    'InvalidTrackException'
+    'InvalidTrackListException'
 ]
 
 from .agent import UserServiceAgent
-from .agent_impl import UserServiceAgentImpl
 from .exceptions import (
     UserServiceException,
     InternalErrorException,
@@ -27,5 +25,5 @@ from .exceptions import (
     FuzzyCityException,
     TrackListAlreadyAddedException,
     TrackListNotAddedException,
-    InvalidTrackException
+    InvalidTrackListException
 )
