@@ -1,6 +1,6 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class Price(BaseModel):
-    price: int = Field(ge=0)
+    price: int
     currency: str

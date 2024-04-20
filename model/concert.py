@@ -17,4 +17,4 @@ class Concert(BaseModel):
     map_url: Optional[str] = Field(validation_alias='mapUrl')
     images: list[str]
     min_price: Optional[Price] = Field(validation_alias='minPrice')
-    artists: list[Artist] = Field(min_length=1)
+    artists: list[Artist]
