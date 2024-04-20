@@ -8,6 +8,7 @@ from aiogram.client.default import DefaultBotProperties
 
 from bot import handlers
 from services.broker import Broker, RabbitMQBroker, BrokerEvent, BrokerException
+from services.user_service.impl.agent_impl import UserServiceAgentImpl
 from settings import settings
 
 
