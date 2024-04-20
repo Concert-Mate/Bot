@@ -9,7 +9,6 @@ from aiogram.types import CallbackQuery, Message
 
 from bot import keyboards
 from bot.states import MenuStates, ChangeDataStates
-from services.user_service_agent import add_city, add_playlist, ResponseCodes
 
 change_data_router = Router()
 
