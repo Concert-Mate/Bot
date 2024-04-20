@@ -13,7 +13,7 @@ class Concert(BaseModel):
     city: Optional[str]
     place: Optional[str]
     address: Optional[str]
-    datetime: Optional[datetime]
+    concert_datetime: Optional[datetime] = Field(validation_alias='datetime')
     map_url: Optional[str] = Field(validation_alias='mapUrl')
     images: list[str]
     min_price: Optional[Price] = Field(validation_alias='minPrice')
