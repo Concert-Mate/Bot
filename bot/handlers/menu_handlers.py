@@ -5,8 +5,8 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
-from src import keyboards
-from src.states import MenuStates
+from bot import keyboards
+from bot.states import MenuStates
 
 menu_router = Router()
 

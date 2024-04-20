@@ -1,8 +1,6 @@
-from typing import List
-
 from aiogram import types
-from aiogram.types import ReplyKeyboardMarkup, InlineKeyboardMarkup
-from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
+from aiogram.types import InlineKeyboardMarkup
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
 def get_main_menu_keyboard() -> InlineKeyboardMarkup:
@@ -60,7 +58,7 @@ def get_cancel_keyboard() -> InlineKeyboardMarkup:
     return builder.as_markup(resize_keyboard=True)
 
 
-def create_inline_keyboard_with_back(rows: List[str]) -> InlineKeyboardMarkup:
+def create_inline_keyboard_with_back(rows: list[str]) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for row in rows:
         builder.row(

@@ -7,9 +7,9 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
-from src import keyboards
-from src.user_service_agent import add_city, add_playlist, ResponseCodes
-from src.states import MenuStates, ChangeDataStates
+from bot import keyboards
+from bot.states import MenuStates, ChangeDataStates
+from services.user_service_agent import add_city, add_playlist, ResponseCodes
 
 change_data_router = Router()
 

@@ -10,5 +10,5 @@ poetry install
 
 ## Запуск бота
 ```bash
-poetry run -vvv python main.py
+python main.py
 ```
