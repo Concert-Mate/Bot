@@ -9,7 +9,7 @@ from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery
 
 from bot import keyboards
 from bot.states import RegistrationStates, MenuStates
-from services.user_service_agent import add_city, add_playlist, ResponseCodes
+from services.user_service import UserServiceAgent
 
 registration_router = Router()
 
@@ -67,38 +67,38 @@ async def add_first_city_from_location(message: Message, state: FSMContext) -> N
 @registration_router.message(RegistrationStates.ADD_FIRST_CITY, F.content_type == ContentType.TEXT and F.text[0] != '/')
 async def add_first_city_from_text(message: Message, state: FSMContext) -> None:
     city = message.text
-    if city is None:
-        await message.answer(text='Неверный формат текста')
-        return
-    if message.from_user is None:
-        return
-    user_id = message.from_user.id
-    if user_id is None:
-        return
-    try:
-        response = add_city(user_id, city)
-    except ValueError as e:
-        print(e)
-        return
-
-    if response.code == ResponseCodes.SUCCESS:
-        await __add_city(city, True, state)
-        await message.answer(text=f'Город {city} добавлен успешно.', reply_markup=ReplyKeyboardRemove())
-        await state.update_data(is_first_city=False)
-        await message.answer(text=__after_first_city_msg, reply_markup=keyboards.get_skip_add_cities_markup())
-        await state.set_state(state=RegistrationStates.ADD_CITIES_IN_LOOP)
-        return
-    if response.code == ResponseCodes.INVALID_CITY:
-        await message.answer(text='Некорректно введен город или его не существует')
-        return
-    if response.code == ResponseCodes.FUZZY_CITY:
-        await __send_fuzz_variant_message(city, message, state)
-        return
-    if (response.code == ResponseCodes.CITY_ALREADY_ADDED or
-            response.code == ResponseCodes.NO_CONNECTION or
-            response.code == ResponseCodes.INTERNAL_ERROR or
-            response.code == ResponseCodes.USER_NOT_FOUND):
-        await message.answer(text='Ошибки на стороне сервиса, попробуйте еще раз')
+    # if city is None:
+    #     await message.answer(text='Неверный формат текста')
+    #     return
+    # if message.from_user is None:
+    #     return
+    # user_id = message.from_user.id
+    # if user_id is None:
+    #     return
+    # try:
+    #     response = add_city(user_id, city)
+    # except ValueError as e:
+    #     print(e)
+    #     return
+    #
+    # if response.code == ResponseCodes.SUCCESS:
+    #     await __add_city(city, True, state)
+    #     await message.answer(text=f'Город {city} добавлен успешно.', reply_markup=ReplyKeyboardRemove())
+    #     await state.update_data(is_first_city=False)
+    #     await message.answer(text=__after_first_city_msg, reply_markup=keyboards.get_skip_add_cities_markup())
+    #     await state.set_state(state=RegistrationStates.ADD_CITIES_IN_LOOP)
+    #     return
+    # if response.code == ResponseCodes.INVALID_CITY:
+    #     await message.answer(text='Некорректно введен город или его не существует')
+    #     return
+    # if response.code == ResponseCodes.FUZZY_CITY:
+    #     await __send_fuzz_variant_message(city, message, state)
+    #     return
+    # if (response.code == ResponseCodes.CITY_ALREADY_ADDED or
+    #         response.code == ResponseCodes.NO_CONNECTION or
+    #         response.code == ResponseCodes.INTERNAL_ERROR or
+    #         response.code == ResponseCodes.USER_NOT_FOUND):
+    #     await message.answer(text='Ошибки на стороне сервиса, попробуйте еще раз')
 
 
 @registration_router.message(RegistrationStates.ADD_CITIES_IN_LOOP, F.text == keyboards.skip_add_cities_texts)
@@ -113,95 +113,95 @@ async def skip_add_cities(message: Message, state: FSMContext) -> None:
                                                                      and F.text[0] != '/'))
 async def add_city_in_loop(message: Message, state: FSMContext) -> None:
     city = message.text
-    if city is None:
-        await message.answer(text='Неверный формат текста')
-        return
-    if message.from_user is None:
-        return
-    user_id = message.from_user.id
-    if user_id is None:
-        return
-
-    try:
-        response = add_city(message.from_user.id, city)
-    except ValueError as e:
-        print(e)
-        return
-
-    if response.code == ResponseCodes.SUCCESS:
-        is_city_was_added = await __add_city(city, False, state)
-
-        if not is_city_was_added:
-            await message.answer(text='Город уже был добавлен')
-            return
-
-        await message.answer(text=f'Город {city} добавлен успешно.')
-        return
-
-    if response.code == ResponseCodes.INVALID_CITY:
-        await message.answer(text='Некорректно введен город или его не существует')
-        return
-    if response.code == ResponseCodes.FUZZY_CITY:
-        await __send_fuzz_variant_message(city, message, state)
-        return
-    if (response.code == ResponseCodes.CITY_ALREADY_ADDED or
-            response.code == ResponseCodes.NO_CONNECTION or
-            response.code == ResponseCodes.INTERNAL_ERROR or
-            response.code == ResponseCodes.USER_NOT_FOUND):
-        await message.answer(text='Ошибки на стороне сервиса, попробуйте еще раз')
+    # if city is None:
+    #     await message.answer(text='Неверный формат текста')
+    #     return
+    # if message.from_user is None:
+    #     return
+    # user_id = message.from_user.id
+    # if user_id is None:
+    #     return
+    #
+    # try:
+    #     response = add_city(message.from_user.id, city)
+    # except ValueError as e:
+    #     print(e)
+    #     return
+    #
+    # if response.code == ResponseCodes.SUCCESS:
+    #     is_city_was_added = await __add_city(city, False, state)
+    #
+    #     if not is_city_was_added:
+    #         await message.answer(text='Город уже был добавлен')
+    #         return
+    #
+    #     await message.answer(text=f'Город {city} добавлен успешно.')
+    #     return
+    #
+    # if response.code == ResponseCodes.INVALID_CITY:
+    #     await message.answer(text='Некорректно введен город или его не существует')
+    #     return
+    # if response.code == ResponseCodes.FUZZY_CITY:
+    #     await __send_fuzz_variant_message(city, message, state)
+    #     return
+    # if (response.code == ResponseCodes.CITY_ALREADY_ADDED or
+    #         response.code == ResponseCodes.NO_CONNECTION or
+    #         response.code == ResponseCodes.INTERNAL_ERROR or
+    #         response.code == ResponseCodes.USER_NOT_FOUND):
+    #     await message.answer(text='Ошибки на стороне сервиса, попробуйте еще раз')
 
 
 @registration_router.callback_query(RegistrationStates.ADD_CITY_CALLBACKS, F.data == 'apply')
 async def apply_city_callback(callback_query: CallbackQuery, state: FSMContext) -> None:
     user_data = await state.get_data()
-    city = user_data['variant']
-    bot = callback_query.bot
-    if bot is None or callback_query.message is None:
-        return
-    try:
-        response = add_city(callback_query.from_user.id, city)
-    except ValueError as e:
-        print(e)
-        return
-    await callback_query.answer()
-    if response.code == ResponseCodes.SUCCESS:
-        is_city_was_added = await __add_city(city, user_data['is_first_city'], state)
-        await bot.edit_message_reply_markup(chat_id=callback_query.message.chat.id,
-                                            message_id=callback_query.message.message_id,
-                                            reply_markup=None)
-
-        if user_data['is_first_city']:
-            await bot.send_message(chat_id=callback_query.message.chat.id,
-                                   text='Город добавлен')
-            await bot.send_message(chat_id=callback_query.message.chat.id,
-                                   text=__after_first_city_msg,
-                                   reply_markup=keyboards.get_skip_add_cities_markup())
-            await state.update_data(is_first_city=False)
-            await state.set_state(RegistrationStates.ADD_CITIES_IN_LOOP)
-            return
-
-        await state.set_state(RegistrationStates.ADD_CITIES_IN_LOOP)
-
-        if not is_city_was_added:
-            await bot.send_message(chat_id=callback_query.message.chat.id,
-                                   text='Город уже был добавлен',
-                                   reply_markup=keyboards.get_skip_add_cities_markup())
-            return
-
-        await bot.send_message(chat_id=callback_query.message.chat.id,
-                               text='Город добавлен',
-                               reply_markup=keyboards.get_skip_add_cities_markup())
-
-    if (response.code == ResponseCodes.CITY_ALREADY_ADDED or
-            response.code == ResponseCodes.NO_CONNECTION or
-            response.code == ResponseCodes.INTERNAL_ERROR or
-            response.code == ResponseCodes.USER_NOT_FOUND or
-            response.code == ResponseCodes.FUZZY_CITY or
-            response.code == ResponseCodes.INVALID_CITY):
-        with suppress(TelegramBadRequest):
-            if isinstance(callback_query.message, Message):
-                await callback_query.message.edit_text(text='Ошибки на стороне сервиса, попробуйте еще раз',
-                                                       reply_markup=keyboards.get_fuzz_variants_markup())
+    # city = user_data['variant']
+    # bot = callback_query.bot
+    # if bot is None or callback_query.message is None:
+    #     return
+    # try:
+    #     response = add_city(callback_query.from_user.id, city)
+    # except ValueError as e:
+    #     print(e)
+    #     return
+    # await callback_query.answer()
+    # if response.code == ResponseCodes.SUCCESS:
+    #     is_city_was_added = await __add_city(city, user_data['is_first_city'], state)
+    #     await bot.edit_message_reply_markup(chat_id=callback_query.message.chat.id,
+    #                                         message_id=callback_query.message.message_id,
+    #                                         reply_markup=None)
+    #
+    #     if user_data['is_first_city']:
+    #         await bot.send_message(chat_id=callback_query.message.chat.id,
+    #                                text='Город добавлен')
+    #         await bot.send_message(chat_id=callback_query.message.chat.id,
+    #                                text=__after_first_city_msg,
+    #                                reply_markup=keyboards.get_skip_add_cities_markup())
+    #         await state.update_data(is_first_city=False)
+    #         await state.set_state(RegistrationStates.ADD_CITIES_IN_LOOP)
+    #         return
+    #
+    #     await state.set_state(RegistrationStates.ADD_CITIES_IN_LOOP)
+    #
+    #     if not is_city_was_added:
+    #         await bot.send_message(chat_id=callback_query.message.chat.id,
+    #                                text='Город уже был добавлен',
+    #                                reply_markup=keyboards.get_skip_add_cities_markup())
+    #         return
+    #
+    #     await bot.send_message(chat_id=callback_query.message.chat.id,
+    #                            text='Город добавлен',
+    #                            reply_markup=keyboards.get_skip_add_cities_markup())
+    #
+    # if (response.code == ResponseCodes.CITY_ALREADY_ADDED or
+    #         response.code == ResponseCodes.NO_CONNECTION or
+    #         response.code == ResponseCodes.INTERNAL_ERROR or
+    #         response.code == ResponseCodes.USER_NOT_FOUND or
+    #         response.code == ResponseCodes.FUZZY_CITY or
+    #         response.code == ResponseCodes.INVALID_CITY):
+    #     with suppress(TelegramBadRequest):
+    #         if isinstance(callback_query.message, Message):
+    #             await callback_query.message.edit_text(text='Ошибки на стороне сервиса, попробуйте еще раз',
+    #                                                    reply_markup=keyboards.get_fuzz_variants_markup())
 
 
 @registration_router.callback_query(RegistrationStates.ADD_CITY_CALLBACKS, F.data == 'deny')
@@ -237,39 +237,39 @@ async def skip_add_links(message: Message, state: FSMContext) -> None:
 @registration_router.message(RegistrationStates.ADD_LINK, F.content_type == ContentType.TEXT and F.text[0] != '/')
 async def add_link(message: Message, state: FSMContext) -> None:
     link = message.text
-    if link is None:
-        await message.answer(text='Неверный формат текста')
-        return
-    if message.from_user is None:
-        return
-    user_id = message.from_user.id
-    if user_id is None:
-        return
-
-    try:
-        response = add_playlist(message.from_user.id, link)
-    except ValueError as e:
-        print(e)
-        return
-    if response.code == ResponseCodes.SUCCESS:
-        user_data = await state.get_data()
-        if len(user_data['links']) == 0:
-            await __add_link(link, True, state)
-            await message.answer(text='Ссылка успешно добавлена')
-            await message.answer(text=__after_first_link_msg, reply_markup=keyboards.get_skip_add_links_markup())
-            return
-
-        is_link_was_added = await __add_link(link, False, state)
-        if not is_link_was_added:
-            await message.answer(text='Ссылка уже была добавлена')
-            return
-
-        await message.answer(text='Ссылка успешно добавлена')
-    if response.code == ResponseCodes.INVALID_TRACKS_LIST:
-        await message.answer(text='Ссылка недействительна')
-        return
-    if (response.code == ResponseCodes.USER_NOT_FOUND or
-            response.code == ResponseCodes.INTERNAL_ERROR or
-            response.code == ResponseCodes.NO_CONNECTION or
-            response.code == ResponseCodes.TRACKS_LIST_ALREADY_ADDED):
-        await message.answer(text='Ошибка на стороне сервиса, попробуйте позже')
+    # if link is None:
+    #     await message.answer(text='Неверный формат текста')
+    #     return
+    # if message.from_user is None:
+    #     return
+    # user_id = message.from_user.id
+    # if user_id is None:
+    #     return
+    #
+    # try:
+    #     response = add_playlist(message.from_user.id, link)
+    # except ValueError as e:
+    #     print(e)
+    #     return
+    # if response.code == ResponseCodes.SUCCESS:
+    #     user_data = await state.get_data()
+    #     if len(user_data['links']) == 0:
+    #         await __add_link(link, True, state)
+    #         await message.answer(text='Ссылка успешно добавлена')
+    #         await message.answer(text=__after_first_link_msg, reply_markup=keyboards.get_skip_add_links_markup())
+    #         return
+    #
+    #     is_link_was_added = await __add_link(link, False, state)
+    #     if not is_link_was_added:
+    #         await message.answer(text='Ссылка уже была добавлена')
+    #         return
+    #
+    #     await message.answer(text='Ссылка успешно добавлена')
+    # if response.code == ResponseCodes.INVALID_TRACKS_LIST:
+    #     await message.answer(text='Ссылка недействительна')
+    #     return
+    # if (response.code == ResponseCodes.USER_NOT_FOUND or
+    #         response.code == ResponseCodes.INTERNAL_ERROR or
+    #         response.code == ResponseCodes.NO_CONNECTION or
+    #         response.code == ResponseCodes.TRACKS_LIST_ALREADY_ADDED):
+    #     await message.answer(text='Ошибка на стороне сервиса, попробуйте позже')
