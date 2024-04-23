@@ -3,13 +3,13 @@ import logging
 import sys
 
 from aiogram import Bot
-from aiogram.client.default import DefaultBotProperties
 
 from services.broker import Broker, BrokerEvent, BrokerException
 from services.broker.impl.rabbitmq_broker import RabbitMQBroker
 from settings import settings
+from utils import create_bot
 
-bot = Bot(token=settings.bot_token, default=DefaultBotProperties())
+bot: Bot = create_bot(settings)
 
 
 async def on_message(event: BrokerEvent) -> None:

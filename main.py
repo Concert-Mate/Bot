@@ -3,19 +3,12 @@ import logging
 import sys
 
 from aiogram import Bot, Dispatcher
-from aiogram.client.default import DefaultBotProperties
 
 from bot import handlers
 from services.user_service import UserServiceAgent
 from services.user_service.impl.agent_impl import UserServiceAgentImpl
 from settings import settings
-
-bot = Bot(token=settings.bot_token, default=DefaultBotProperties())
-dp = Dispatcher()
-dp.include_router(handlers.common_router)
-dp.include_router(handlers.registration_router)
-dp.include_router(handlers.menu_router)
-dp.include_router(handlers.change_data_router)
+from utils import create_bot
 
 
 async def main() -> None:
@@ -24,9 +17,13 @@ async def main() -> None:
         user_service_port=settings.user_service_port,
     )
 
+    bot: Bot = create_bot(settings)
+    dp = Dispatcher()
     dp['agent'] = agent
-
-    await agent.create_user(704578790)
+    dp.include_router(handlers.common_router)
+    dp.include_router(handlers.registration_router)
+    dp.include_router(handlers.menu_router)
+    dp.include_router(handlers.change_data_router)
     await dp.start_polling(bot)
 
 
