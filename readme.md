@@ -10,5 +10,10 @@ poetry install
 
 ## Запуск бота
 ```bash
-python main.py
+python bot.py
+```
+
+## Запуск слушателя брокера сообщений
+```bash
+python broker_listener.py
 ```
