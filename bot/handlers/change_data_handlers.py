@@ -81,8 +81,11 @@ async def add_one_city(message: Message, state: FSMContext, agent: UserServiceAg
     except InvalidCityException:
         await message.answer(text='Некорректно введен город или его не существует')
     except FuzzyCityException as e:
-        await __send_fuzz_variant_message(city, e.variant, message, state)
-        return
+        if e.variant is not None:
+            await __send_fuzz_variant_message(city, e.variant, message, state)
+            return
+        else:
+            await message.answer(text='Внутрение проблемы сервиса, попробуйте позже')
     except CityAlreadyAddedException:
         await message.answer('Город уже был добавлен')
     except Exception as e:
@@ -100,6 +103,8 @@ async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext, a
         return
 
     if callback_query.from_user is None:
+        return
+    if callback_query.message is None:
         return
     user_id = callback_query.from_user.id
     if user_id is None:
@@ -179,6 +184,8 @@ async def remove_city(callback_query: CallbackQuery, state: FSMContext, agent: U
     if user_id is None:
         return
     city = callback_query.data
+    if city is None:
+        return
     bot = callback_query.bot
     if bot is None or callback_query.message is None:
         return

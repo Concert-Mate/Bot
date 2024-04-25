@@ -32,7 +32,7 @@ class InvalidCityException(UserServiceException):
 
 
 class FuzzyCityException(UserServiceException):
-    def __init__(self, variant: str):
+    def __init__(self, variant: str | None):
         self.variant = variant
         super().__init__()
     pass

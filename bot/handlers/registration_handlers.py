@@ -85,6 +85,9 @@ async def add_first_city_from_text(message: Message, state: FSMContext, agent: U
         await message.answer(text='Некорректно введен город или его не существует')
         return
     except FuzzyCityException as e:
+        if e.variant is None:
+            await message.answer(text='Внутрение проблемы сервиса, попробуйте позже')
+            return
         await __send_fuzz_variant_message(city, e.variant[0], message, state)
         return
     except CityAlreadyAddedException:
@@ -125,6 +128,9 @@ async def add_city_in_loop(message: Message, state: FSMContext, agent: UserServi
         await message.answer(text='Некорректно введен город или его не существует')
         return
     except FuzzyCityException as e:
+        if e.variant is None:
+            await message.answer(text='Внутрение проблемы сервиса, попробуйте позже')
+            return
         await __send_fuzz_variant_message(city, e.variant, message, state)
         return
     except CityAlreadyAddedException:
@@ -141,6 +147,8 @@ async def apply_city_callback(callback_query: CallbackQuery, state: FSMContext, 
         return
 
     if callback_query.from_user is None:
+        return
+    if callback_query.message is None:
         return
     user_id = callback_query.from_user.id
     if user_id is None:
