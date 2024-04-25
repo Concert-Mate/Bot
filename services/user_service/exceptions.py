@@ -1,3 +1,6 @@
+from datetime import datetime
+
+
 class UserServiceException(Exception):
     pass
 
@@ -7,7 +10,9 @@ class InternalErrorException(UserServiceException):
 
 
 class UserAlreadyExistsException(UserServiceException):
-    pass
+    def __init__(self, date: datetime):
+        self.date = date
+        super().__init__()
 
 
 class UserDoesNotExistException(UserServiceException):
@@ -27,6 +32,9 @@ class InvalidCityException(UserServiceException):
 
 
 class FuzzyCityException(UserServiceException):
+    def __init__(self, variant: str):
+        self.variant = variant
+        super().__init__()
     pass
 
 
