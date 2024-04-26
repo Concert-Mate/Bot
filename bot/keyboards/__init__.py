@@ -12,7 +12,8 @@ __all__ = [
     'get_back_keyboard',
     'get_user_info_keyboard',
     'get_tools_keyboard',
-    'get_notify_management_keyboard'
+    'get_notify_management_keyboard',
+    'create_inline_keyboard_for_playlists'
 ]
 
 from .menu_keyboards import *

@@ -72,6 +72,22 @@ def create_inline_keyboard_with_back(rows: list[str]) -> InlineKeyboardMarkup:
     return builder.as_markup(resize_keyboard=True)
 
 
+def create_inline_keyboard_for_playlists(rows: list[str]) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    pos = 1
+    for row in rows:
+        builder.row(
+            types.InlineKeyboardButton(
+                text=str(pos), callback_data=row),
+        )
+        pos += 1
+    builder.row(types.InlineKeyboardButton(
+        text='Назад', callback_data='back',
+    ))
+
+    return builder.as_markup(resize_keyboard=True)
+
+
 def get_faq_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 

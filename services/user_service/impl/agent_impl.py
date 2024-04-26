@@ -6,7 +6,7 @@ from aiohttp import ClientConnectionError
 from model import Concert
 from .. import InternalErrorException, UserAlreadyExistsException, TrackListNotAddedException, \
     CityAlreadyAddedException, UserDoesNotExistException, InvalidCityException, FuzzyCityException, \
-    CityNotAddedException
+    CityNotAddedException, TrackListAlreadyAddedException, InvalidTrackListException
 from ..agent import UserServiceAgent
 from ..response import UserTrackListsResponse, UserCitiesResponse, UserConcertsResponse, DefaultResponse, \
     ResponseStatusCode
@@ -46,11 +46,31 @@ class UserServiceAgentImpl(UserServiceAgent):
 
     async def add_user_track_list(self, telegram_id: int, track_list_url: str) -> None:
         url: str = self.__get_user_track_lists_url(telegram_id)
-        await self.__session.post(url=url, params={'url': track_list_url})
+        try:
+            response = await self.__session.post(url=url, params={'url': track_list_url})
+            try:
+                parsed_response = DefaultResponse.model_validate_json(await response.text())
+                self.__validate_add_link(parsed_response.status.code)
+            except ValueError as e:
+                raise InternalErrorException('BAD ANSWER') from e
+        except ClientConnectionError as e:
+            print(e)
+            raise InternalErrorException('NO CONNECTION')
+
 
     async def delete_user_track_list(self, telegram_id: int, track_list_url: str) -> None:
         url: str = self.__get_user_track_lists_url(telegram_id)
-        await self.__session.delete(url=url, params={'url': track_list_url})
+        try:
+            response = await self.__session.delete(url=url, params={'url': track_list_url})
+            try:
+                parsed_response = DefaultResponse.model_validate_json(await response.text())
+                self.__validate_delete_link(parsed_response.status.code)
+            except ValueError as e:
+                raise InternalErrorException('BAD ANSWER') from e
+        except ClientConnectionError as e:
+            print(e)
+            raise InternalErrorException('NO CONNECTION')
+
 
     async def add_user_city(self, telegram_id: int, city: str) -> None:
         url: str = self.__get_user_cities_url(telegram_id)
@@ -84,8 +104,19 @@ class UserServiceAgentImpl(UserServiceAgent):
     async def get_user_track_lists(self, telegram_id: int) -> list[str]:
         url: str = self.__get_user_track_lists_url(telegram_id)
 
-        async with self.__session.get(url=url) as response:
-            return UserTrackListsResponse.model_validate_json(await response.text()).track_lists
+        try:
+            response = await self.__session.get(url=url)
+            try:
+                text = await response.text()
+                print(text)
+                parsed_response = UserTrackListsResponse.model_validate_json(await response.text())
+                self.__validate_get_links(parsed_response.status.code)
+                return parsed_response.track_lists
+            except ValueError as e:
+                raise InternalErrorException('BAD ANSWER') from e
+        except ClientConnectionError as e:
+            print(e)
+            raise InternalErrorException('NO CONNECTION')
 
     async def get_user_cities(self, telegram_id: int) -> list[str]:
         url: str = self.__get_user_cities_url(telegram_id)
@@ -164,3 +195,33 @@ class UserServiceAgentImpl(UserServiceAgent):
         if status == ResponseStatusCode.CITY_NOT_ADDED:
             raise CityNotAddedException()
         raise InternalErrorException("Unknown response code on remove user city")
+
+    @staticmethod
+    def __validate_add_link(status: ResponseStatusCode) -> None:
+        if status == ResponseStatusCode.SUCCESS:
+            return
+        if status == ResponseStatusCode.TRACKS_LIST_ALREADY_ADDED:
+            raise TrackListAlreadyAddedException()
+        if status == ResponseStatusCode.INVALID_TRACK_LIST:
+            raise InvalidTrackListException()
+        if status == ResponseStatusCode.USER_NOT_FOUND:
+            raise UserDoesNotExistException()
+        raise InternalErrorException("Unknown response code on add link")
+
+    @staticmethod
+    def __validate_delete_link(status: ResponseStatusCode) -> None:
+        if status == ResponseStatusCode.SUCCESS:
+            return
+        if status == ResponseStatusCode.TRACKS_LIST_NOT_ADDED:
+            raise TrackListNotAddedException()
+        if status == ResponseStatusCode.USER_NOT_FOUND:
+            raise UserDoesNotExistException()
+        raise InternalErrorException("Unknown response code on delete link")
+
+    @staticmethod
+    def __validate_get_links(status: ResponseStatusCode) -> None:
+        if status == ResponseStatusCode.SUCCESS:
+            return
+        if status == ResponseStatusCode.USER_NOT_FOUND:
+            raise UserDoesNotExistException()
+        raise InternalErrorException("Unknown response code on get lins")
