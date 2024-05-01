@@ -1,3 +1,4 @@
+import logging
 from aiogram import Router
 from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
@@ -6,6 +7,7 @@ from aiogram.types import Message, ReplyKeyboardRemove
 from bot.keyboards import get_location_keyboard_markup, get_main_menu_keyboard
 from bot.states import RegistrationStates, MenuStates
 from services.user_service import UserServiceAgent, UserAlreadyExistsException
+from .constants import INTERNAL_ERROR_DEFAULT_TEXT
 
 common_router = Router()
 
@@ -28,21 +30,18 @@ async def command_start(message: Message, state: FSMContext, agent: UserServiceA
                                   f' ,чтобы отправить геолокацию.', reply_markup=get_location_keyboard_markup())
         await state.update_data(is_first_city=True)
         await state.set_state(RegistrationStates.ADD_FIRST_CITY)
-        return
-    except UserAlreadyExistsException as e:
+    except UserAlreadyExistsException:
         await message.answer(text=f'Привет, {message.from_user.username},'
-                                  f' мы вас помним, вы регистрировались {e.date} числа',
+                                  f' мы вас помним, вы уже регистрировались',
                              reply_markup=ReplyKeyboardRemove())
         await state.set_state(MenuStates.MAIN_MENU)
         await state.update_data(is_first_city=False)
 
         await message.answer('Выберите действие', reply_markup=get_main_menu_keyboard())
-        return
 
     except Exception as e:
-        print(str(e))
-        await message.answer(text='Внутрение проблемы сервиса, попробуйте позже')
-        return
+        logging.log(level=logging.INFO, msg=str(e))
+        await message.answer(text=INTERNAL_ERROR_DEFAULT_TEXT)
 
 
 @common_router.message(Command('stop'))

@@ -1,6 +1,3 @@
-from datetime import datetime
-
-
 class UserServiceException(Exception):
     pass
 
@@ -10,9 +7,7 @@ class InternalErrorException(UserServiceException):
 
 
 class UserAlreadyExistsException(UserServiceException):
-    def __init__(self, date: datetime):
-        self.date = date
-        super().__init__()
+    pass
 
 
 class UserDoesNotExistException(UserServiceException):
@@ -32,10 +27,15 @@ class InvalidCityException(UserServiceException):
 
 
 class FuzzyCityException(UserServiceException):
-    def __init__(self, variant: str | None):
-        self.variant = variant
+    __variant: str
+
+    def __init__(self, variant: str):
+        self.__variant = variant
         super().__init__()
-    pass
+
+    @property
+    def variant(self) -> str:
+        return self.__variant
 
 
 class TrackListAlreadyAddedException(UserServiceException):

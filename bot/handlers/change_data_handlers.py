@@ -1,16 +1,19 @@
+import logging
 from contextlib import suppress
 
-from aiogram import Router, F
-from aiogram.enums import ContentType
+from aiogram import F
+from aiogram import Router
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from bot import keyboards
+from bot.keyboards import KeyboardCallbackData
 from bot.states import MenuStates, ChangeDataStates
 from services.user_service import (UserServiceAgent, InvalidCityException,
                                    FuzzyCityException, CityAlreadyAddedException,
                                    TrackListAlreadyAddedException, InvalidTrackListException)
+from .constants import TEXT_WITHOUT_COMMANDS_FILTER, INTERNAL_ERROR_DEFAULT_TEXT
 
 change_data_router = Router()
 
@@ -22,7 +25,7 @@ async def __send_fuzz_variant_message(city: str, variant: str, message: Message,
     await state.set_state(ChangeDataStates.CITY_NAME_IS_FUZZY)
 
 
-@change_data_router.callback_query(MenuStates.CHANGE_DATA, F.data == 'back')
+@change_data_router.callback_query(MenuStates.CHANGE_DATA, F.data == KeyboardCallbackData.BACK)
 async def show_change_data_variants(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
@@ -31,7 +34,7 @@ async def show_change_data_variants(callback_query: CallbackQuery, state: FSMCon
         await state.set_state(MenuStates.MAIN_MENU)
 
 
-@change_data_router.callback_query(MenuStates.CHANGE_DATA, F.data == 'add_city')
+@change_data_router.callback_query(MenuStates.CHANGE_DATA, F.data == KeyboardCallbackData.ADD_CITY)
 async def add_city_text_send(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
@@ -49,7 +52,7 @@ async def resent(message: Message, state: FSMContext) -> None:
                            reply_markup=keyboards.get_change_data_keyboard())
 
 
-@change_data_router.callback_query(ChangeDataStates.ENTER_NEW_CITY, F.data == 'cancel')
+@change_data_router.callback_query(ChangeDataStates.ENTER_NEW_CITY, F.data == KeyboardCallbackData.CANCEL)
 async def cancel_add_city(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
@@ -57,8 +60,7 @@ async def cancel_add_city(callback_query: CallbackQuery, state: FSMContext) -> N
     await state.set_state(MenuStates.CHANGE_DATA)
 
 
-@change_data_router.message(ChangeDataStates.ENTER_NEW_CITY, (F.content_type == ContentType.TEXT
-                                                              and F.text[0] != '/'))
+@change_data_router.message(ChangeDataStates.ENTER_NEW_CITY, TEXT_WITHOUT_COMMANDS_FILTER)
 async def add_one_city(message: Message, state: FSMContext, agent: UserServiceAgent) -> None:
     bot = message.bot
     if bot is None:
@@ -86,18 +88,18 @@ async def add_one_city(message: Message, state: FSMContext, agent: UserServiceAg
             await __send_fuzz_variant_message(city, e.variant, message, state)
             return
         else:
-            await message.answer(text='Внутрение проблемы сервиса, попробуйте позже')
+            await message.answer(text=INTERNAL_ERROR_DEFAULT_TEXT)
     except CityAlreadyAddedException:
         await message.answer('Город уже был добавлен')
     except Exception as e:
-        print(str(e))
-        await message.answer(text='Внутрение проблемы сервиса, попробуйте позже')
+        logging.log(level=logging.INFO, msg=str(e))
+        await message.answer(text=INTERNAL_ERROR_DEFAULT_TEXT)
 
     await message.answer(text='Выберите вариант', reply_markup=keyboards.get_change_data_keyboard())
     await state.set_state(MenuStates.CHANGE_DATA)
 
 
-@change_data_router.callback_query(ChangeDataStates.CITY_NAME_IS_FUZZY, F.data == 'apply')
+@change_data_router.callback_query(ChangeDataStates.CITY_NAME_IS_FUZZY, F.data == KeyboardCallbackData.APPLY)
 async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext, agent: UserServiceAgent) -> None:
     bot = callback_query.bot
     if bot is None:
@@ -119,7 +121,6 @@ async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext, a
         await bot.send_message(chat_id=callback_query.message.chat.id, text='Выберите вариант',
                                reply_markup=keyboards.get_change_data_keyboard())
         await state.set_state(MenuStates.CHANGE_DATA)
-        return
 
     except CityAlreadyAddedException:
         await bot.edit_message_text(chat_id=callback_query.message.chat.id, text='Город уже был добавлен',
@@ -127,17 +128,15 @@ async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext, a
         await bot.send_message(chat_id=callback_query.message.chat.id, text='Выберите вариант',
                                reply_markup=keyboards.get_change_data_keyboard())
         await state.set_state(MenuStates.CHANGE_DATA)
-        return
     except Exception as e:
-        print(str(e))
+        logging.log(level=logging.INFO, msg=str(e))
         with suppress(TelegramBadRequest):
             if isinstance(callback_query.message, Message):
-                await callback_query.message.edit_text(text='Ошибки на стороне сервиса, попробуйте еще раз',
+                await callback_query.message.edit_text(text=INTERNAL_ERROR_DEFAULT_TEXT,
                                                        reply_markup=keyboards.get_fuzz_variants_markup())
-        return
 
 
-@change_data_router.callback_query(ChangeDataStates.CITY_NAME_IS_FUZZY, F.data == 'deny')
+@change_data_router.callback_query(ChangeDataStates.CITY_NAME_IS_FUZZY, F.data == KeyboardCallbackData.DENY)
 async def deny_city_variant(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
@@ -145,7 +144,7 @@ async def deny_city_variant(callback_query: CallbackQuery, state: FSMContext) ->
     await state.set_state(MenuStates.CHANGE_DATA)
 
 
-@change_data_router.callback_query(MenuStates.CHANGE_DATA, F.data == 'remove_city')
+@change_data_router.callback_query(MenuStates.CHANGE_DATA, F.data == KeyboardCallbackData.REMOVE_CITY)
 async def show_cities_as_inline_keyboard(callback_query: CallbackQuery, state: FSMContext,
                                          agent: UserServiceAgent) -> None:
     if not isinstance(callback_query.message, Message):
@@ -162,17 +161,16 @@ async def show_cities_as_inline_keyboard(callback_query: CallbackQuery, state: F
                                                    reply_markup=keyboards.get_back_keyboard())
         else:
             await callback_query.message.edit_text(text='Выберите город, который нужно удалить',
-                                                   reply_markup=keyboards.create_inline_keyboard_with_back(cities))
+                                                   reply_markup=keyboards.get_inline_keyboard_with_back(cities))
         await state.set_state(ChangeDataStates.REMOVE_CITY)
     except Exception as e:
-        print(str(e))
-        await callback_query.message.edit_text(text='Внутренние проблемы сервиса, попробуйте позже',
+        logging.log(level=logging.INFO, msg=str(e))
+        await callback_query.message.edit_text(text=INTERNAL_ERROR_DEFAULT_TEXT,
                                                reply_markup=keyboards.get_back_keyboard())
         await state.set_state(ChangeDataStates.REMOVE_CITY)
-        return
 
 
-@change_data_router.callback_query(ChangeDataStates.REMOVE_CITY, F.data == 'back')
+@change_data_router.callback_query(ChangeDataStates.REMOVE_CITY, F.data == KeyboardCallbackData.BACK)
 async def return_from_remove(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
@@ -181,7 +179,7 @@ async def return_from_remove(callback_query: CallbackQuery, state: FSMContext) -
     await state.set_state(MenuStates.CHANGE_DATA)
 
 
-@change_data_router.callback_query(ChangeDataStates.REMOVE_CITY, F.data != 'back')
+@change_data_router.callback_query(ChangeDataStates.REMOVE_CITY, F.data != KeyboardCallbackData.BACK)
 async def remove_city(callback_query: CallbackQuery, state: FSMContext, agent: UserServiceAgent) -> None:
     if callback_query.from_user is None:
         return
@@ -203,19 +201,17 @@ async def remove_city(callback_query: CallbackQuery, state: FSMContext, agent: U
         await bot.send_message(chat_id=callback_query.message.chat.id, text='Выберите вариант',
                                reply_markup=keyboards.get_change_data_keyboard())
         await state.set_state(MenuStates.CHANGE_DATA)
-        return
     except Exception as e:
-        print(str(e))
+        logging.log(level=logging.INFO, msg=str(e))
         await bot.edit_message_text(chat_id=callback_query.message.chat.id,
                                     message_id=callback_query.message.message_id,
-                                    text=f'Проблемы на стороне сервиса, попробуйте позже', reply_markup=None)
+                                    text=INTERNAL_ERROR_DEFAULT_TEXT, reply_markup=None)
         await bot.send_message(chat_id=callback_query.message.chat.id, text='Выберите вариант',
                                reply_markup=keyboards.get_change_data_keyboard())
         await state.set_state(MenuStates.CHANGE_DATA)
-        return
 
 
-@change_data_router.callback_query(MenuStates.CHANGE_DATA, F.data == 'add_playlist')
+@change_data_router.callback_query(MenuStates.CHANGE_DATA, F.data == KeyboardCallbackData.ADD_LINK)
 async def add_one_playlist_show_msg(callback_query: CallbackQuery, state: FSMContext) -> None:
     bot = callback_query.bot
     if bot is None or callback_query is None or callback_query.message is None:
@@ -227,8 +223,7 @@ async def add_one_playlist_show_msg(callback_query: CallbackQuery, state: FSMCon
     await state.set_state(ChangeDataStates.ENTER_NEW_PLAYLIST)
 
 
-@change_data_router.message(ChangeDataStates.ENTER_NEW_PLAYLIST, (F.content_type == ContentType.TEXT
-                                                                  and F.text[0] != '/'))
+@change_data_router.message(ChangeDataStates.ENTER_NEW_PLAYLIST, TEXT_WITHOUT_COMMANDS_FILTER)
 async def add_one_playlist(message: Message, state: FSMContext, agent: UserServiceAgent) -> None:
     bot = message.bot
     if bot is None:
@@ -252,14 +247,14 @@ async def add_one_playlist(message: Message, state: FSMContext, agent: UserServi
     except InvalidTrackListException:
         await message.answer(text='Ссылка недействительна')
     except Exception as e:
-        print(str(e))
-        await message.answer(text='Ошибка на стороне сервиса, попробуйте позже')
+        logging.log(level=logging.INFO, msg=str(e))
+        await message.answer(text=INTERNAL_ERROR_DEFAULT_TEXT)
 
     await message.answer(text='Выберите вариант', reply_markup=keyboards.get_change_data_keyboard())
     await state.set_state(MenuStates.CHANGE_DATA)
 
 
-@change_data_router.callback_query(ChangeDataStates.ENTER_NEW_PLAYLIST, F.data == 'cancel')
+@change_data_router.callback_query(ChangeDataStates.ENTER_NEW_PLAYLIST, F.data == KeyboardCallbackData.CANCEL)
 async def return_from_add_playlist(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
@@ -267,7 +262,7 @@ async def return_from_add_playlist(callback_query: CallbackQuery, state: FSMCont
     await state.set_state(MenuStates.CHANGE_DATA)
 
 
-@change_data_router.callback_query(MenuStates.CHANGE_DATA, F.data == 'remove_playlist')
+@change_data_router.callback_query(MenuStates.CHANGE_DATA, F.data == KeyboardCallbackData.REMOVE_LINK)
 async def show_playlists_as_inline_keyboard(callback_query: CallbackQuery, state: FSMContext,
                                             agent: UserServiceAgent) -> None:
     if not isinstance(callback_query.message, Message):
@@ -292,21 +287,23 @@ async def show_playlists_as_inline_keyboard(callback_query: CallbackQuery, state
             pos = 1
             for link in links:
                 text += f'\n{pos}: {link}'
+                pos += 1
             await bot.edit_message_text(text=text, chat_id=callback_query.message.chat.id,
-                                        message_id=callback_query.message.message_id, reply_markup=None)
+                                        message_id=callback_query.message.message_id, reply_markup=None,
+                                        disable_web_page_preview=True)
             await bot.send_message(chat_id=callback_query.message.chat.id,
                                    text='Выберите ссылку, которую нужно удалить',
-                                   reply_markup=keyboards.create_inline_keyboard_for_playlists(
+                                   reply_markup=keyboards.get_inline_keyboard_for_playlists(
                                        links))
         await state.set_state(ChangeDataStates.REMOVE_PLAYLIST)
     except Exception as e:
-        print(str(e))
-        await callback_query.message.edit_text(text='Внутренние проблемы сервиса, попробуйте позже',
+        logging.log(level=logging.INFO, msg=str(e))
+        await callback_query.message.edit_text(text=INTERNAL_ERROR_DEFAULT_TEXT,
                                                reply_markup=keyboards.get_back_keyboard())
         await state.set_state(ChangeDataStates.REMOVE_PLAYLIST)
 
 
-@change_data_router.callback_query(ChangeDataStates.REMOVE_PLAYLIST, F.data == 'back')
+@change_data_router.callback_query(ChangeDataStates.REMOVE_PLAYLIST, F.data == KeyboardCallbackData.BACK)
 async def return_from_remove_playlist(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
@@ -315,7 +312,7 @@ async def return_from_remove_playlist(callback_query: CallbackQuery, state: FSMC
     await state.set_state(MenuStates.CHANGE_DATA)
 
 
-@change_data_router.callback_query(ChangeDataStates.REMOVE_PLAYLIST, F.data != 'back')
+@change_data_router.callback_query(ChangeDataStates.REMOVE_PLAYLIST, F.data != KeyboardCallbackData.BACK)
 async def remove_playlist(callback_query: CallbackQuery, state: FSMContext, agent: UserServiceAgent) -> None:
     playlist = callback_query.data
     if playlist is None:
@@ -337,11 +334,10 @@ async def remove_playlist(callback_query: CallbackQuery, state: FSMContext, agen
                                reply_markup=keyboards.get_change_data_keyboard())
         await state.set_state(MenuStates.CHANGE_DATA)
     except Exception as e:
-        print(str(e))
+        logging.log(level=logging.INFO, msg=str(e))
         await bot.edit_message_text(chat_id=callback_query.message.chat.id,
                                     message_id=callback_query.message.message_id,
-                                    text=f'Проблемы на стороне сервиса, попробуйте позже', reply_markup=None)
+                                    text=INTERNAL_ERROR_DEFAULT_TEXT, reply_markup=None)
         await bot.send_message(chat_id=callback_query.message.chat.id, text='Выберите вариант',
                                reply_markup=keyboards.get_change_data_keyboard())
         await state.set_state(MenuStates.CHANGE_DATA)
-        return
