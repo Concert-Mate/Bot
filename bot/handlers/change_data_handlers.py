@@ -13,7 +13,7 @@ from bot.states import MenuStates, ChangeDataStates
 from services.user_service import (UserServiceAgent, InvalidCityException,
                                    FuzzyCityException, CityAlreadyAddedException,
                                    TrackListAlreadyAddedException, InvalidTrackListException)
-from .constants import TEXT_WITHOUT_COMMANDS_FILTER, INTERNAL_ERROR_DEFAULT_TEXT
+from .constants import TEXT_WITHOUT_COMMANDS_FILTER, INTERNAL_ERROR_DEFAULT_TEXT, CHOOSE_ACTION_TEXT
 
 change_data_router = Router()
 
@@ -21,7 +21,7 @@ change_data_router = Router()
 async def __send_fuzz_variant_message(city: str, variant: str, message: Message, state: FSMContext) -> None:
     await message.answer(text=f'Города {city} не существует, может быть вы имели ввиду {variant}?')
     await state.update_data(variant=variant)
-    await message.answer('Выберите вариант действий', reply_markup=keyboards.get_fuzz_variants_markup())
+    await message.answer(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_fuzz_variants_markup())
     await state.set_state(ChangeDataStates.CITY_NAME_IS_FUZZY)
 
 
@@ -30,7 +30,7 @@ async def show_change_data_variants(callback_query: CallbackQuery, state: FSMCon
     if not isinstance(callback_query.message, Message):
         return
     with suppress(TelegramBadRequest):
-        await callback_query.message.edit_text('Выберите действие', reply_markup=keyboards.get_main_menu_keyboard())
+        await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_main_menu_keyboard())
         await state.set_state(MenuStates.MAIN_MENU)
 
 
@@ -48,7 +48,7 @@ async def resent(message: Message, state: FSMContext) -> None:
     if bot is None:
         return
     await bot.delete_message(chat_id=message.chat.id, message_id=(message.message_id - 1))
-    await bot.send_message(chat_id=message.chat.id, text='Выберите действие',
+    await bot.send_message(chat_id=message.chat.id, text=CHOOSE_ACTION_TEXT,
                            reply_markup=keyboards.get_change_data_keyboard())
 
 
@@ -56,7 +56,7 @@ async def resent(message: Message, state: FSMContext) -> None:
 async def cancel_add_city(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
-    await callback_query.message.edit_text(text='Выберите действие', reply_markup=keyboards.get_change_data_keyboard())
+    await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_change_data_keyboard())
     await state.set_state(MenuStates.CHANGE_DATA)
 
 
@@ -65,7 +65,7 @@ async def add_one_city(message: Message, state: FSMContext, agent: UserServiceAg
     bot = message.bot
     if bot is None:
         return
-    await bot.delete_message(message.chat.id, message.message_id - 1)
+    await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id - 1)
     city = message.text
 
     if city is None:
@@ -90,12 +90,12 @@ async def add_one_city(message: Message, state: FSMContext, agent: UserServiceAg
         else:
             await message.answer(text=INTERNAL_ERROR_DEFAULT_TEXT)
     except CityAlreadyAddedException:
-        await message.answer('Город уже был добавлен')
+        await message.answer(text='Город уже был добавлен')
     except Exception as e:
         logging.log(level=logging.INFO, msg=str(e))
         await message.answer(text=INTERNAL_ERROR_DEFAULT_TEXT)
 
-    await message.answer(text='Выберите вариант', reply_markup=keyboards.get_change_data_keyboard())
+    await message.answer(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_change_data_keyboard())
     await state.set_state(MenuStates.CHANGE_DATA)
 
 
@@ -118,14 +118,14 @@ async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext, a
         await agent.add_user_city(user_id, city)
         await bot.edit_message_text(chat_id=callback_query.message.chat.id, text='Город успешно добавлен',
                                     message_id=callback_query.message.message_id, reply_markup=None)
-        await bot.send_message(chat_id=callback_query.message.chat.id, text='Выберите вариант',
+        await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
                                reply_markup=keyboards.get_change_data_keyboard())
         await state.set_state(MenuStates.CHANGE_DATA)
 
     except CityAlreadyAddedException:
         await bot.edit_message_text(chat_id=callback_query.message.chat.id, text='Город уже был добавлен',
                                     message_id=callback_query.message.message_id, reply_markup=None)
-        await bot.send_message(chat_id=callback_query.message.chat.id, text='Выберите вариант',
+        await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
                                reply_markup=keyboards.get_change_data_keyboard())
         await state.set_state(MenuStates.CHANGE_DATA)
     except Exception as e:
@@ -140,7 +140,7 @@ async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext, a
 async def deny_city_variant(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
-    await callback_query.message.edit_text(text='Выберите вариант', reply_markup=keyboards.get_change_data_keyboard())
+    await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_change_data_keyboard())
     await state.set_state(MenuStates.CHANGE_DATA)
 
 
@@ -174,7 +174,7 @@ async def show_cities_as_inline_keyboard(callback_query: CallbackQuery, state: F
 async def return_from_remove(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
-    await callback_query.message.edit_text(text='Выберите действие',
+    await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT,
                                            reply_markup=keyboards.get_change_data_keyboard())
     await state.set_state(MenuStates.CHANGE_DATA)
 
@@ -198,7 +198,7 @@ async def remove_city(callback_query: CallbackQuery, state: FSMContext, agent: U
         await bot.edit_message_text(chat_id=callback_query.message.chat.id,
                                     message_id=callback_query.message.message_id,
                                     text=f'Город {city} успешно удалён')
-        await bot.send_message(chat_id=callback_query.message.chat.id, text='Выберите вариант',
+        await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
                                reply_markup=keyboards.get_change_data_keyboard())
         await state.set_state(MenuStates.CHANGE_DATA)
     except Exception as e:
@@ -206,7 +206,7 @@ async def remove_city(callback_query: CallbackQuery, state: FSMContext, agent: U
         await bot.edit_message_text(chat_id=callback_query.message.chat.id,
                                     message_id=callback_query.message.message_id,
                                     text=INTERNAL_ERROR_DEFAULT_TEXT, reply_markup=None)
-        await bot.send_message(chat_id=callback_query.message.chat.id, text='Выберите вариант',
+        await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
                                reply_markup=keyboards.get_change_data_keyboard())
         await state.set_state(MenuStates.CHANGE_DATA)
 
@@ -243,14 +243,14 @@ async def add_one_playlist(message: Message, state: FSMContext, agent: UserServi
         await agent.add_user_track_list(user_id, link)
         await message.answer(text='Ссылка успешно добавлена')
     except TrackListAlreadyAddedException:
-        await message.answer('Ссылка уже была добавлена')
+        await message.answer(text='Ссылка уже была добавлена')
     except InvalidTrackListException:
         await message.answer(text='Ссылка недействительна')
     except Exception as e:
         logging.log(level=logging.INFO, msg=str(e))
         await message.answer(text=INTERNAL_ERROR_DEFAULT_TEXT)
 
-    await message.answer(text='Выберите вариант', reply_markup=keyboards.get_change_data_keyboard())
+    await message.answer(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_change_data_keyboard())
     await state.set_state(MenuStates.CHANGE_DATA)
 
 
@@ -258,7 +258,7 @@ async def add_one_playlist(message: Message, state: FSMContext, agent: UserServi
 async def return_from_add_playlist(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
-    await callback_query.message.edit_text(text='Выберите действие', reply_markup=keyboards.get_change_data_keyboard())
+    await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_change_data_keyboard())
     await state.set_state(MenuStates.CHANGE_DATA)
 
 
@@ -280,10 +280,10 @@ async def show_playlists_as_inline_keyboard(callback_query: CallbackQuery, state
     try:
         links = await agent.get_user_track_lists(user_id)
         if len(links) == 0:
-            await callback_query.message.edit_text(text='Ссылки не обнаружены',
+            await callback_query.message.edit_text(text='У вас не указан ни один плейлист',
                                                    reply_markup=keyboards.get_back_keyboard())
         else:
-            text = 'Ссылки'
+            text = 'Плейлисты'
             pos = 1
             for link in links:
                 text += f'\n{pos}: {link}'
@@ -292,7 +292,7 @@ async def show_playlists_as_inline_keyboard(callback_query: CallbackQuery, state
                                         message_id=callback_query.message.message_id, reply_markup=None,
                                         disable_web_page_preview=True)
             await bot.send_message(chat_id=callback_query.message.chat.id,
-                                   text='Выберите ссылку, которую нужно удалить',
+                                   text='Выберите плейлист, которую нужно удалить',
                                    reply_markup=keyboards.get_inline_keyboard_for_playlists(
                                        links))
         await state.set_state(ChangeDataStates.REMOVE_PLAYLIST)
@@ -307,7 +307,7 @@ async def show_playlists_as_inline_keyboard(callback_query: CallbackQuery, state
 async def return_from_remove_playlist(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
-    await callback_query.message.edit_text(text='Выберите действие',
+    await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT,
                                            reply_markup=keyboards.get_change_data_keyboard())
     await state.set_state(MenuStates.CHANGE_DATA)
 
@@ -330,7 +330,7 @@ async def remove_playlist(callback_query: CallbackQuery, state: FSMContext, agen
         await bot.edit_message_text(chat_id=callback_query.message.chat.id,
                                     message_id=callback_query.message.message_id,
                                     text=f'Ссылка успешно удалёна', reply_markup=None)
-        await bot.send_message(chat_id=callback_query.message.chat.id, text='Выберите вариант',
+        await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
                                reply_markup=keyboards.get_change_data_keyboard())
         await state.set_state(MenuStates.CHANGE_DATA)
     except Exception as e:
@@ -338,6 +338,6 @@ async def remove_playlist(callback_query: CallbackQuery, state: FSMContext, agen
         await bot.edit_message_text(chat_id=callback_query.message.chat.id,
                                     message_id=callback_query.message.message_id,
                                     text=INTERNAL_ERROR_DEFAULT_TEXT, reply_markup=None)
-        await bot.send_message(chat_id=callback_query.message.chat.id, text='Выберите вариант',
+        await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
                                reply_markup=keyboards.get_change_data_keyboard())
         await state.set_state(MenuStates.CHANGE_DATA)

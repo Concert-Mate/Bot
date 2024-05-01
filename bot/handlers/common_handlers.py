@@ -7,7 +7,7 @@ from aiogram.types import Message, ReplyKeyboardRemove
 from bot.keyboards import get_location_keyboard_markup, get_main_menu_keyboard
 from bot.states import RegistrationStates, MenuStates
 from services.user_service import UserServiceAgent, UserAlreadyExistsException
-from .constants import INTERNAL_ERROR_DEFAULT_TEXT
+from .constants import INTERNAL_ERROR_DEFAULT_TEXT, CHOOSE_ACTION_TEXT
 
 common_router = Router()
 
@@ -37,7 +37,7 @@ async def command_start(message: Message, state: FSMContext, agent: UserServiceA
         await state.set_state(MenuStates.MAIN_MENU)
         await state.update_data(is_first_city=False)
 
-        await message.answer('Выберите действие', reply_markup=get_main_menu_keyboard())
+        await message.answer(CHOOSE_ACTION_TEXT, reply_markup=get_main_menu_keyboard())
 
     except Exception as e:
         logging.log(level=logging.INFO, msg=str(e))
