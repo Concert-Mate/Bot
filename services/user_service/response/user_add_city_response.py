@@ -7,4 +7,4 @@ from .response_status import ResponseStatus
 
 class UserAddCityResponse(BaseModel):
     status: ResponseStatus
-    variant: Optional[str] = None
+    city: Optional[str] = None

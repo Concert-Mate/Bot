@@ -9,6 +9,7 @@ from .. import InternalErrorException, UserAlreadyExistsException, TrackListNotA
     CityAlreadyAddedException, UserDoesNotExistException, InvalidCityException, FuzzyCityException, \
     CityNotAddedException, TrackListAlreadyAddedException, InvalidTrackListException
 from ..agent import UserServiceAgent
+from ..exceptions import InvalidCoordsException
 from ..response import UserTrackListsResponse, UserCitiesResponse, UserConcertsResponse, DefaultResponse, \
     ResponseStatusCode
 from ..response.user_add_city_response import UserAddCityResponse
@@ -85,7 +86,7 @@ class UserServiceAgentImpl(UserServiceAgent):
         try:
             response = await self.__session.post(url=url, params={'city': city})
             parsed_response = UserAddCityResponse.model_validate_json(await response.text())
-            self.__validate_add_city_code(parsed_response.status.code, parsed_response.variant)
+            self.__validate_add_city_code(parsed_response.status.code, parsed_response.city)
         except ValueError as e:
             raise InternalErrorException(self.__BAD_ANSWER_TEXT) from e
         except ClientConnectionError as e:
@@ -147,6 +148,23 @@ class UserServiceAgentImpl(UserServiceAgent):
             logging.log(level=logging.INFO, msg=str(e))
             raise InternalErrorException(self.__NO_CONNECTION_TEXT) from e
 
+    async def add_user_city_by_coordinates(self, telegram_id: int, lat: float, lon: float) -> str:
+        url = self.__get_user_cities_url(telegram_id)
+
+        try:
+            response = await self.__session.post(url=url, params={'lat': lat, 'lon': lon})
+            print(await response.text())
+            parsed_response = UserAddCityResponse.model_validate_json(await response.text())
+            self.__validate_add_city_by_coordinates(parsed_response.status.code)
+            return parsed_response.city
+        except ValueError as e:
+            raise InternalErrorException(self.__BAD_ANSWER_TEXT) from e
+        except ClientConnectionError as e:
+            logging.log(level=logging.INFO, msg=str(e))
+            raise InternalErrorException(self.__NO_CONNECTION_TEXT) from e
+
+
+
     @staticmethod
     def __get_users_url(telegram_id: int) -> str:
         return f'/users/{telegram_id}'
@@ -184,7 +202,7 @@ class UserServiceAgentImpl(UserServiceAgent):
         raise InternalErrorException('Unknown response code on add user')
 
     @staticmethod
-    def __validate_add_city_code(status: ResponseStatusCode, variants: Optional[str]) -> None:
+    def __validate_add_city_code(status: ResponseStatusCode, variant: Optional[str]) -> None:
         if status == ResponseStatusCode.SUCCESS:
             return
         UserServiceAgentImpl.__check_user_not_found(status)
@@ -195,9 +213,9 @@ class UserServiceAgentImpl(UserServiceAgent):
         if status == ResponseStatusCode.INVALID_CITY:
             raise InvalidCityException()
         if status == ResponseStatusCode.FUZZY_CITY:
-            if variants is None:
+            if variant is None:
                 raise InternalErrorException('No city variant when status = FUZZY_CITY')
-            raise FuzzyCityException(variants)
+            raise FuzzyCityException(variant)
         raise InternalErrorException('Unknown response code on add city')
 
     @staticmethod
@@ -266,3 +284,18 @@ class UserServiceAgentImpl(UserServiceAgent):
         UserServiceAgentImpl.__check_user_not_found(status)
 
         raise InternalErrorException('Unknown response code on get concerts')
+
+    @staticmethod
+    def __validate_add_city_by_coordinates(status: ResponseStatusCode):
+        if status == ResponseStatusCode.SUCCESS:
+            return
+        UserServiceAgentImpl.__check_user_not_found(status)
+        UserServiceAgentImpl.__check_internal_error(status)
+
+        if status == ResponseStatusCode.CITY_ALREADY_ADDED:
+            raise CityAlreadyAddedException()
+        if status == ResponseStatusCode.INVALID_CITY:
+            raise InvalidCityException()
+        if status == ResponseStatusCode.INVALID_COORDS:
+            raise InvalidCoordsException()
+        raise InternalErrorException('Unknown response code on add city by coordinates')

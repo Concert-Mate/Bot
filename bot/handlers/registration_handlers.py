@@ -14,6 +14,7 @@ from bot.states import RegistrationStates, MenuStates
 from services.user_service import (UserServiceAgent, InvalidCityException,
                                    FuzzyCityException, CityAlreadyAddedException,
                                    InvalidTrackListException, TrackListAlreadyAddedException)
+from services.user_service.exceptions import InvalidCoordsException
 from .constants import SKIP_COMMAND_FILTER, TEXT_WITHOUT_COMMANDS_FILTER, INTERNAL_ERROR_DEFAULT_TEXT
 
 registration_router = Router()
@@ -45,17 +46,31 @@ async def __add_city(city: str, is_first_city: bool, state: FSMContext) -> bool:
 
 
 @registration_router.message(RegistrationStates.ADD_FIRST_CITY, F.content_type == ContentType.LOCATION)
-async def add_first_city_from_location(message: Message, state: FSMContext) -> None:
+async def add_first_city_from_location(message: Message, state: FSMContext, agent: UserServiceAgent) -> None:
     if message.location is None or message.location.latitude is None or message.location.longitude is None:
         await message.answer('Некорректный формат координат, попробуйте еще раз')
         return
-    coords = f'lat:{message.location.latitude}, lng:{message.location.longitude}'
-    await __add_city(coords, True, state)
-    await message.answer(text=f'Ваши координаты: {coords}', reply_markup=ReplyKeyboardRemove())
-    await state.update_data(is_first_city=False)
-    await message.answer(text=__after_first_city_msg, reply_markup=keyboards.get_skip_add_cities_markup())
-    await state.set_state(state=RegistrationStates.ADD_CITIES_IN_LOOP)
-    # QUESTION: Может ли быть тут некорректный город?
+    if message.from_user is None:
+        return
+    user_id = message.from_user.id
+    if user_id is None:
+        return
+
+    try:
+        city = await agent.add_user_city_by_coordinates(user_id, message.location.latitude, message.location.longitude)
+        await message.answer(text=f'Город {city} добавлен успешно')
+        await message.answer(text=__after_first_city_msg, reply_markup=keyboards.get_skip_add_cities_markup())
+        await state.set_state(state=RegistrationStates.ADD_CITIES_IN_LOOP)
+        return
+    except InvalidCityException:
+        await message.answer(text='Города не обнаружены')
+    except InvalidCoordsException:
+        await message.answer(text='Координаты не действительны')
+    except CityAlreadyAddedException:
+        await message.answer(text='Город уже был добавлен')
+    except Exception as e:
+        logging.log(level=logging.INFO, msg=str(e))
+        await message.answer(text=INTERNAL_ERROR_DEFAULT_TEXT)
 
 
 @registration_router.message(RegistrationStates.ADD_FIRST_CITY, TEXT_WITHOUT_COMMANDS_FILTER)
@@ -80,7 +95,7 @@ async def add_first_city_from_text(message: Message, state: FSMContext, agent: U
         if e.variant is None:
             await message.answer(text=INTERNAL_ERROR_DEFAULT_TEXT)
             return
-        await __send_fuzz_variant_message(city, e.variant[0], message, state)
+        await __send_fuzz_variant_message(city, e.variant, message, state)
     except CityAlreadyAddedException:
         await message.answer('Город уже был добавлен')
     except Exception as e:
@@ -144,7 +159,7 @@ async def apply_city_callback(callback_query: CallbackQuery, state: FSMContext, 
         return
     user_data = await state.get_data()
     city = user_data['variant']
-
+    await callback_query.answer()
     try:
         await agent.add_user_city(user_id, city)
         await bot.send_message(chat_id=callback_query.message.chat.id,

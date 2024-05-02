@@ -104,3 +104,17 @@ class UserServiceAgent(ABC):
         :raises InternalErrorException: internal error occurred
         :raises UserDoesNotExistException: user isn't registered
         """
+
+    @abstractmethod
+    async def add_user_city_by_coordinates(self, telegram_id: int, lat: float, lon: float) -> str:
+        """
+        Add city to user by coordinates
+        :param telegram_id: id of telegram user
+        :param lat: latitude
+        :param lon: longitude
+        :raises InternalErrorException: internal error occurred
+        :raises UserDoesNotExistException: user isn't registered
+        :raises InvalidCityException: no cities by coordinates
+        :raises CityAlreadyAddedException: city is already added
+        :raise InvalidCoordsException: bad values of coordinates
+        """

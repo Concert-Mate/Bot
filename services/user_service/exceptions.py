@@ -48,3 +48,7 @@ class TrackListNotAddedException(UserServiceException):
 
 class InvalidTrackListException(UserServiceException):
     pass
+
+
+class InvalidCoordsException(UserServiceException):
+    pass
