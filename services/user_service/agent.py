@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 from model import Concert
+from model.playlist import Playlist
 
 
 class UserServiceAgent(ABC):
@@ -25,7 +26,7 @@ class UserServiceAgent(ABC):
         """
 
     @abstractmethod
-    async def add_user_track_list(self, telegram_id: int, track_list_url: str) -> None:
+    async def add_user_track_list(self, telegram_id: int, track_list_url: str) -> Playlist:
         """
         Adds tracks list to user.
 
@@ -76,7 +77,7 @@ class UserServiceAgent(ABC):
         """
 
     @abstractmethod
-    async def get_user_track_lists(self, telegram_id: int) -> list[str]:
+    async def get_user_track_lists(self, telegram_id: int) -> list[Playlist]:
         """
         Returns list of user track lists.
 

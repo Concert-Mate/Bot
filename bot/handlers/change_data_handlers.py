@@ -240,10 +240,10 @@ async def add_one_playlist(message: Message, state: FSMContext, agent: UserServi
         return
 
     try:
-        await agent.add_user_track_list(user_id, link)
-        await message.answer(text='Ссылка успешно добавлена')
+        track_list = await agent.add_user_track_list(user_id, link)
+        await message.answer(text=f'Альбом {track_list.title} успешно добавлен')
     except TrackListAlreadyAddedException:
-        await message.answer(text='Ссылка уже была добавлена')
+        await message.answer(text='Альбом уже был добавлен')
     except InvalidTrackListException:
         await message.answer(text='Ссылка недействительна')
     except Exception as e:
@@ -278,15 +278,15 @@ async def show_playlists_as_inline_keyboard(callback_query: CallbackQuery, state
         return
 
     try:
-        links = await agent.get_user_track_lists(user_id)
-        if len(links) == 0:
+        playlists = await agent.get_user_track_lists(user_id)
+        if len(playlists) == 0:
             await callback_query.message.edit_text(text='У вас не указан ни один плейлист',
                                                    reply_markup=keyboards.get_back_keyboard())
         else:
             text = 'Плейлисты'
             pos = 1
-            for link in links:
-                text += f'\n{pos}: {link}'
+            for playlist in playlists:
+                text += f'\n{pos}: {playlist.title}'
                 pos += 1
             await bot.edit_message_text(text=text, chat_id=callback_query.message.chat.id,
                                         message_id=callback_query.message.message_id, reply_markup=None,
@@ -294,7 +294,7 @@ async def show_playlists_as_inline_keyboard(callback_query: CallbackQuery, state
             await bot.send_message(chat_id=callback_query.message.chat.id,
                                    text='Выберите плейлист, которую нужно удалить',
                                    reply_markup=keyboards.get_inline_keyboard_for_playlists(
-                                       links))
+                                       playlists))
         await state.set_state(ChangeDataStates.REMOVE_PLAYLIST)
     except Exception as e:
         logging.log(level=logging.INFO, msg=str(e))

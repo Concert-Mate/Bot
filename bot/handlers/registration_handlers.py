@@ -227,16 +227,16 @@ async def add_link(message: Message, state: FSMContext, agent: UserServiceAgent)
     if user_id is None:
         return
     try:
-        await agent.add_user_track_list(user_id, link)
+        track_list = await agent.add_user_track_list(user_id, link)
         user_data = await state.get_data()
         if user_data['is_first_link']:
             await message.answer(text=__after_first_link_msg, reply_markup=keyboards.get_skip_add_links_markup())
             await state.update_data(is_first_link=False)
-        await message.answer(text='Ссылка успешно добавлена')
+        await message.answer(text=f'Альбом {track_list.title} успешн добавлен')
     except InvalidTrackListException:
         await message.answer(text='Ссылка недействительна')
     except TrackListAlreadyAddedException:
-        await message.answer(text='Ссылка уже была добавлена')
+        await message.answer(text='Альбом уже был добавлен')
     except Exception as e:
         logging.log(level=logging.INFO, msg=str(e))
         await message.answer(text=INTERNAL_ERROR_DEFAULT_TEXT)

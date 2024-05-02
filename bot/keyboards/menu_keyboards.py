@@ -2,6 +2,7 @@ from aiogram import types
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from model.playlist import Playlist
 from .callback_data import KeyboardCallbackData
 from .utils import create_resizable_inline_keyboard
 
@@ -75,12 +76,12 @@ def get_inline_keyboard_with_back(rows: list[str]) -> InlineKeyboardMarkup:
     return create_resizable_inline_keyboard(builder)
 
 
-def get_inline_keyboard_for_playlists(rows: list[str]) -> InlineKeyboardMarkup:
+def get_inline_keyboard_for_playlists(rows: list[Playlist]) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for pos, row in enumerate(rows):
         builder.row(
             types.InlineKeyboardButton(
-                text=str(pos + 1), callback_data=row),
+                text=str(pos + 1), callback_data=row.url),
         )
     builder.row(types.InlineKeyboardButton(
         text='Назад', callback_data=KeyboardCallbackData.BACK,

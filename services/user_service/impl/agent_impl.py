@@ -5,13 +5,14 @@ import aiohttp
 from aiohttp import ClientConnectionError
 
 from model import Concert
+from model.playlist import Playlist
 from .. import InternalErrorException, UserAlreadyExistsException, TrackListNotAddedException, \
     CityAlreadyAddedException, UserDoesNotExistException, InvalidCityException, FuzzyCityException, \
     CityNotAddedException, TrackListAlreadyAddedException, InvalidTrackListException
 from ..agent import UserServiceAgent
 from ..exceptions import InvalidCoordsException
 from ..response import UserTrackListsResponse, UserCitiesResponse, UserConcertsResponse, DefaultResponse, \
-    ResponseStatusCode
+    ResponseStatusCode, UserTrackListResponse
 from ..response.user_add_city_response import UserAddCityResponse
 
 
@@ -56,12 +57,13 @@ class UserServiceAgentImpl(UserServiceAgent):
             logging.log(level=logging.INFO, msg=str(e))
             raise InternalErrorException(self.__NO_CONNECTION_TEXT) from e
 
-    async def add_user_track_list(self, telegram_id: int, track_list_url: str) -> None:
+    async def add_user_track_list(self, telegram_id: int, track_list_url: str) -> Playlist:
         url: str = self.__get_user_track_lists_url(telegram_id)
         try:
             response = await self.__session.post(url=url, params={'url': track_list_url})
-            parsed_response = DefaultResponse.model_validate_json(await response.text())
+            parsed_response = UserTrackListResponse.model_validate_json(await response.text())
             self.__validate_add_link(parsed_response.status.code)
+            return parsed_response.tracks_list
         except ValueError as e:
             raise InternalErrorException(self.__BAD_ANSWER_TEXT) from e
         except ClientConnectionError as e:
@@ -106,7 +108,7 @@ class UserServiceAgentImpl(UserServiceAgent):
             logging.log(level=logging.INFO, msg=str(e))
             raise InternalErrorException(self.__NO_CONNECTION_TEXT) from e
 
-    async def get_user_track_lists(self, telegram_id: int) -> list[str]:
+    async def get_user_track_lists(self, telegram_id: int) -> list[Playlist]:
         url: str = self.__get_user_track_lists_url(telegram_id)
 
         try:
