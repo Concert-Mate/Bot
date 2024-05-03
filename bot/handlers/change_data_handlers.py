@@ -218,7 +218,7 @@ async def add_one_playlist_show_msg(callback_query: CallbackQuery, state: FSMCon
         return
 
     await bot.edit_message_text(chat_id=callback_query.message.chat.id, message_id=callback_query.message.message_id,
-                                text='Введите ссылку на плейлист',
+                                text='Введите ссылку на трек-лист',
                                 reply_markup=keyboards.get_cancel_keyboard())
     await state.set_state(ChangeDataStates.ENTER_NEW_PLAYLIST)
 
@@ -241,9 +241,9 @@ async def add_one_playlist(message: Message, state: FSMContext, agent: UserServi
 
     try:
         track_list = await agent.add_user_track_list(user_id, link)
-        await message.answer(text=f'Альбом {track_list.title} успешно добавлен')
+        await message.answer(text=f'Трек-лист {track_list.title} успешно добавлен')
     except TrackListAlreadyAddedException:
-        await message.answer(text='Альбом уже был добавлен')
+        await message.answer(text='Трек-лист уже был добавлен')
     except InvalidTrackListException:
         await message.answer(text='Ссылка недействительна')
     except Exception as e:
@@ -280,10 +280,10 @@ async def show_playlists_as_inline_keyboard(callback_query: CallbackQuery, state
     try:
         playlists = await agent.get_user_track_lists(user_id)
         if len(playlists) == 0:
-            await callback_query.message.edit_text(text='У вас не указан ни один плейлист',
+            await callback_query.message.edit_text(text='У вас не указан ни один трек-лист',
                                                    reply_markup=keyboards.get_back_keyboard())
         else:
-            text = 'Плейлисты'
+            text = 'Трек-листы'
             pos = 1
             for playlist in playlists:
                 text += f'\n{pos}: {playlist.title}'
@@ -292,7 +292,7 @@ async def show_playlists_as_inline_keyboard(callback_query: CallbackQuery, state
                                         message_id=callback_query.message.message_id, reply_markup=None,
                                         disable_web_page_preview=True)
             await bot.send_message(chat_id=callback_query.message.chat.id,
-                                   text='Выберите плейлист, которую нужно удалить',
+                                   text='Выберите трек-лист, который нужно удалить',
                                    reply_markup=keyboards.get_inline_keyboard_for_playlists(
                                        playlists))
         await state.set_state(ChangeDataStates.REMOVE_PLAYLIST)
@@ -329,7 +329,7 @@ async def remove_playlist(callback_query: CallbackQuery, state: FSMContext, agen
         await agent.delete_user_track_list(user_id, playlist)
         await bot.edit_message_text(chat_id=callback_query.message.chat.id,
                                     message_id=callback_query.message.message_id,
-                                    text=f'Ссылка успешно удалёна', reply_markup=None)
+                                    text=f'Трек-лист успешно удалён', reply_markup=None)
         await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
                                reply_markup=keyboards.get_change_data_keyboard())
         await state.set_state(MenuStates.CHANGE_DATA)
