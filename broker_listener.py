@@ -34,20 +34,23 @@ async def on_message(event: BrokerEvent) -> None:
             txt += f' {artist.name},'
         txt = txt[:-1]
         txt += f'\n\nМесто: город <b>{concert.city}</b>, адрес <b>{concert.address}</b>\nв <i>{concert.place}</i>\n\n'
-        txt += f'Время: {get_date_time(concert.concert_datetime, True)}\n\n'
-        txt += f'Минимальная цена билета: <b>{concert.min_price.price}</b> <b>{concert.min_price.currency}</b>'
+        if concert.concert_datetime is not None:
+            txt += f'Время: {get_date_time(concert.concert_datetime, True)}\n\n'
+        if concert.min_price is not None:
+            txt += f'Минимальная цена билета: <b>{concert.min_price.price}</b> <b>{concert.min_price.currency}</b>'
 
         await bot.send_message(chat_id=event.user.telegram_id,
                                text=txt,
                                parse_mode=ParseMode.HTML,
                                disable_web_page_preview=True)
+        if concert.map_url is not None:
+            try:
+                lon, lat = get_lon_lat_from_yandex_map_link(concert.map_url)
+                await bot.send_location(chat_id=event.user.telegram_id,
+                                        longitude=lon, latitude=lat)
+            except ValueError as e:
+                logging.log(level=logging.WARNING, msg=str(e))
 
-        try:
-            lon, lat = get_lon_lat_from_yandex_map_link(concert.map_url)
-            await bot.send_location(chat_id=event.user.telegram_id,
-                                    longitude=lon, latitude=lat)
-        except ValueError as e:
-            logging.log(level=logging.WARNING, msg=str(e))
 
 
 async def on_error(exception: Exception) -> None:

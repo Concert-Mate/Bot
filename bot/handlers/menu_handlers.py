@@ -191,8 +191,10 @@ async def show_all_concerts(callback_query: CallbackQuery, state: FSMContext, ag
                 txt = txt[:-1]
                 txt += (f'\n\nМесто: город <b>{concert.city}</b>,'
                         f' адрес <b>{concert.address}</b>\nв <i>{concert.place}</i>\n\n')
-                txt += f'Время: {get_date_time(concert.concert_datetime, True)}\n\n'
-                txt += f'Минимальная цена билета: <b>{concert.min_price.price}</b> <b>{concert.min_price.currency}</b>\n\n'
+                if concert.concert_datetime is not None:
+                    txt += f'Время: {get_date_time(concert.concert_datetime, True)}\n\n'
+                if concert.min_price is not None:
+                    txt += f'Минимальная цена билета: <b>{concert.min_price.price}</b> <b>{concert.min_price.currency}</b>\n\n'
                 txt += f'Купить билет можно <a href=\"{concert.afisha_url}\">здесь</a>'
 
                 await bot.send_message(chat_id=callback_query.message.chat.id,
@@ -200,12 +202,13 @@ async def show_all_concerts(callback_query: CallbackQuery, state: FSMContext, ag
                                        parse_mode=ParseMode.HTML,
                                        disable_web_page_preview=True)
 
-                try:
-                    lon, lat = get_lon_lat_from_yandex_map_link(concert.map_url)
-                    await bot.send_location(chat_id=callback_query.message.chat.id,
-                                            longitude=lon, latitude=lat)
-                except ValueError as e:
-                    logging.log(level=logging.WARNING, msg=str(e))
+                if concert.map_url is not None:
+                    try:
+                        lon, lat = get_lon_lat_from_yandex_map_link(concert.map_url)
+                        await bot.send_location(chat_id=callback_query.message.chat.id,
+                                                longitude=lon, latitude=lat)
+                    except ValueError as e:
+                        logging.log(level=logging.WARNING, msg=str(e))
 
     except Exception as e:
         logging.log(level=logging.WARNING, msg=str(e))

@@ -33,7 +33,7 @@ def get_date_time(concert_datetime: datetime, is_underlined: bool) -> str:
         return internal_txt
 
 
-def get_lon_lat_from_yandex_map_link(map_url: str) -> (float, float):
+def get_lon_lat_from_yandex_map_link(map_url: str) -> tuple[float, float]:
     parsed_url = urlparse(map_url)
     parsed_query = parse_qs(parsed_url.query)
     lat_lon_parsed = parsed_query.get('ll')

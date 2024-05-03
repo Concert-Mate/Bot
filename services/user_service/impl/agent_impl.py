@@ -160,6 +160,8 @@ class UserServiceAgentImpl(UserServiceAgent):
             response = await self.__session.post(url=url, params={'lat': lat, 'lon': lon})
             parsed_response = UserAddCityResponse.model_validate_json(await response.text())
             self.__validate_add_city_by_coordinates(parsed_response.status.code)
+            if parsed_response.city is None:
+                raise InternalErrorException('No city when add city by coordinates is successful')
             return parsed_response.city
         except ValueError as e:
             raise InternalErrorException(self.__BAD_ANSWER_TEXT) from e
@@ -290,7 +292,7 @@ class UserServiceAgentImpl(UserServiceAgent):
         raise InternalErrorException('Unknown response code on get concerts')
 
     @staticmethod
-    def __validate_add_city_by_coordinates(status: ResponseStatusCode):
+    def __validate_add_city_by_coordinates(status: ResponseStatusCode) -> None:
         if status == ResponseStatusCode.SUCCESS:
             return
         UserServiceAgentImpl.__check_user_not_found(status)
