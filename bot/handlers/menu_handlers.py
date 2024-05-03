@@ -114,10 +114,10 @@ async def show_all_links(callback_query: CallbackQuery, state: FSMContext, agent
     try:
         playlists = await agent.get_user_track_lists(user_id)
         if len(playlists) == 0:
-            await callback_query.message.edit_text(text='У вас не указан ни один плейлист',
+            await callback_query.message.edit_text(text='У вас не указан ни один трек-лист',
                                                    reply_markup=keyboards.get_back_keyboard())
         else:
-            txt = 'Ваши плейлисты:'
+            txt = 'Ваши трек-листы:'
             for playlist in playlists:
                 txt += f'\n<a href=\"{playlist.url}\">{playlist.title}</a>'
             await callback_query.message.edit_text(text=txt, reply_markup=keyboards.get_back_keyboard(),
