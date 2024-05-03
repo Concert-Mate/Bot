@@ -2,6 +2,7 @@ import logging
 from contextlib import suppress
 
 from aiogram import Router, F
+from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
@@ -11,6 +12,7 @@ from bot.keyboards import KeyboardCallbackData
 from bot.states import MenuStates
 from services.user_service import UserServiceAgent
 from .constants import INTERNAL_ERROR_DEFAULT_TEXT, CHOOSE_ACTION_TEXT
+from concert_message_builder import get_date_time, get_lon_lat_from_yandex_map_link
 
 menu_router = Router()
 
@@ -117,7 +119,7 @@ async def show_all_links(callback_query: CallbackQuery, state: FSMContext, agent
         else:
             txt = 'Ваши плейлисты:'
             for playlist in playlists:
-                txt += f'\n{playlist}'
+                txt += f'\n{playlist.title}'
             await callback_query.message.edit_text(text=txt, reply_markup=keyboards.get_back_keyboard(),
                                                    disable_web_page_preview=True)
     except Exception as e:
@@ -153,15 +155,64 @@ async def show_tools(callback_query: CallbackQuery, state: FSMContext) -> None:
 
 
 @menu_router.callback_query(MenuStates.TOOLS, F.data == KeyboardCallbackData.SHOW_CONCERTS)
-async def show_all_concerts(callback_query: CallbackQuery, state: FSMContext) -> None:
+async def show_all_concerts(callback_query: CallbackQuery, state: FSMContext, agent: UserServiceAgent) -> None:
     bot = callback_query.bot
     if bot is None or callback_query is None or callback_query.message is None:
         return
-    # TODO: Обращение к бэку
-    txt = 'Информация о концерте'
+    if callback_query.from_user is None:
+        return
+    user_id = callback_query.from_user.id
+    if user_id is None:
+        return
+
     await bot.delete_message(chat_id=callback_query.message.chat.id, message_id=callback_query.message.message_id)
-    await bot.send_message(chat_id=callback_query.message.chat.id,
-                           text=txt, reply_markup=None)
+
+
+
+    try:
+        concerts = await agent.get_user_concerts(user_id)
+
+        if len(concerts) == 0:
+            await bot.send_message(chat_id=callback_query.message.chat.id, text='Концерты не обнаружены')
+        else:
+            for concert in concerts:
+                txt = ''
+
+                if len(concert.artists) != 1 or concert.artists[0].name != concert.title:
+                    txt += f'Название: <i>{concert.title}</i>\n\n'
+
+                if len(concert.artists) == 1:
+                    txt += 'Исполнитель:'
+                else:
+                    txt += 'Исполнители:'
+
+                for artist in concert.artists:
+                    txt += f' {artist.name},'
+                txt = txt[:-1]
+                txt += (f'\n\nМесто: город <b>{concert.city}</b>,'
+                        f' адрес <b>{concert.address}</b>\nв <i>{concert.place}</i>\n\n')
+                txt += f'Время: {get_date_time(concert.concert_datetime, True)}\n\n'
+                txt += f'Минимальная цена билета: <b>{concert.min_price.price}</b> <b>{concert.min_price.currency}</b>\n\n'
+                txt += f'Купить билет можно <a href=\"{concert.afisha_url}\">здесь</a>'
+
+                await bot.send_message(chat_id=callback_query.message.chat.id,
+                                       text=txt,
+                                       parse_mode=ParseMode.HTML,
+                                       disable_web_page_preview=True)
+
+                try:
+                    lon, lat = get_lon_lat_from_yandex_map_link(concert.map_url)
+                    await bot.send_location(chat_id=callback_query.message.chat.id,
+                                            longitude=lon, latitude=lat)
+                except ValueError as e:
+                    logging.log(level=logging.WARNING, msg=str(e))
+
+    except Exception as e:
+        logging.log(level=logging.WARNING, msg=str(e))
+        await bot.send_message(chat_id=callback_query.message.chat.id, text=INTERNAL_ERROR_DEFAULT_TEXT)
+
+
+
     await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
                            reply_markup=keyboards.get_tools_keyboard())
     await state.set_state(MenuStates.TOOLS)

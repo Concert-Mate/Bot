@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel, Field
 
 from model.playlist import Playlist
@@ -11,4 +13,4 @@ class UserTrackListsResponse(BaseModel):
 
 class UserTrackListResponse(BaseModel):
     status: ResponseStatus
-    tracks_list: Playlist
+    tracks_list: Optional[Playlist]

@@ -42,7 +42,7 @@ class UserServiceAgentImpl(UserServiceAgent):
         except ValueError as e:
             raise InternalErrorException(self.__BAD_ANSWER_TEXT) from e
         except ClientConnectionError as e:
-            logging.log(level=logging.INFO, msg=str(e))
+            logging.log(level=logging.WARNING, msg=str(e))
             raise InternalErrorException(self.__NO_CONNECTION_TEXT) from e
 
     async def delete_user(self, telegram_id: int) -> None:
@@ -54,20 +54,23 @@ class UserServiceAgentImpl(UserServiceAgent):
         except ValueError as e:
             raise InternalErrorException(self.__BAD_ANSWER_TEXT) from e
         except ClientConnectionError as e:
-            logging.log(level=logging.INFO, msg=str(e))
+            logging.log(level=logging.WARNING, msg=str(e))
             raise InternalErrorException(self.__NO_CONNECTION_TEXT) from e
 
     async def add_user_track_list(self, telegram_id: int, track_list_url: str) -> Playlist:
         url: str = self.__get_user_track_lists_url(telegram_id)
         try:
             response = await self.__session.post(url=url, params={'url': track_list_url})
+            print(await response.text())
             parsed_response = UserTrackListResponse.model_validate_json(await response.text())
             self.__validate_add_link(parsed_response.status.code)
+            if parsed_response.tracks_list is None:
+                raise InternalErrorException('No track list when add user track list is successful')
             return parsed_response.tracks_list
         except ValueError as e:
             raise InternalErrorException(self.__BAD_ANSWER_TEXT) from e
         except ClientConnectionError as e:
-            logging.log(level=logging.INFO, msg=str(e))
+            logging.log(level=logging.WARNING, msg=str(e))
             raise InternalErrorException(self.__NO_CONNECTION_TEXT) from e
 
     async def delete_user_track_list(self, telegram_id: int, track_list_url: str) -> None:
@@ -79,7 +82,7 @@ class UserServiceAgentImpl(UserServiceAgent):
         except ValueError as e:
             raise InternalErrorException(self.__BAD_ANSWER_TEXT) from e
         except ClientConnectionError as e:
-            logging.log(level=logging.INFO, msg=str(e))
+            logging.log(level=logging.WARNING, msg=str(e))
             raise InternalErrorException(self.__NO_CONNECTION_TEXT) from e
 
     async def add_user_city(self, telegram_id: int, city: str) -> None:
@@ -92,7 +95,7 @@ class UserServiceAgentImpl(UserServiceAgent):
         except ValueError as e:
             raise InternalErrorException(self.__BAD_ANSWER_TEXT) from e
         except ClientConnectionError as e:
-            logging.log(level=logging.INFO, msg=str(e))
+            logging.log(level=logging.WARNING, msg=str(e))
             raise InternalErrorException(self.__NO_CONNECTION_TEXT) from e
 
     async def delete_user_city(self, telegram_id: int, city: str) -> None:
@@ -105,7 +108,7 @@ class UserServiceAgentImpl(UserServiceAgent):
         except ValueError as e:
             raise InternalErrorException(self.__BAD_ANSWER_TEXT) from e
         except ClientConnectionError as e:
-            logging.log(level=logging.INFO, msg=str(e))
+            logging.log(level=logging.WARNING, msg=str(e))
             raise InternalErrorException(self.__NO_CONNECTION_TEXT) from e
 
     async def get_user_track_lists(self, telegram_id: int) -> list[Playlist]:
@@ -115,11 +118,11 @@ class UserServiceAgentImpl(UserServiceAgent):
             response = await self.__session.get(url=url)
             parsed_response = UserTrackListsResponse.model_validate_json(await response.text())
             self.__validate_get_links(parsed_response.status.code)
-            return parsed_response.track_lists
+            return parsed_response.tracks_lists
         except ValueError as e:
             raise InternalErrorException(self.__BAD_ANSWER_TEXT) from e
         except ClientConnectionError as e:
-            logging.log(level=logging.INFO, msg=str(e))
+            logging.log(level=logging.WARNING, msg=str(e))
             raise InternalErrorException(self.__NO_CONNECTION_TEXT) from e
 
     async def get_user_cities(self, telegram_id: int) -> list[str]:
@@ -133,7 +136,7 @@ class UserServiceAgentImpl(UserServiceAgent):
         except ValueError as e:
             raise InternalErrorException(self.__BAD_ANSWER_TEXT) from e
         except ClientConnectionError as e:
-            logging.log(level=logging.INFO, msg=str(e))
+            logging.log(level=logging.WARNING, msg=str(e))
             raise InternalErrorException(self.__NO_CONNECTION_TEXT) from e
 
     async def get_user_concerts(self, telegram_id: int) -> list[Concert]:
@@ -147,7 +150,7 @@ class UserServiceAgentImpl(UserServiceAgent):
         except ValueError as e:
             raise InternalErrorException(self.__BAD_ANSWER_TEXT) from e
         except ClientConnectionError as e:
-            logging.log(level=logging.INFO, msg=str(e))
+            logging.log(level=logging.WARNING, msg=str(e))
             raise InternalErrorException(self.__NO_CONNECTION_TEXT) from e
 
     async def add_user_city_by_coordinates(self, telegram_id: int, lat: float, lon: float) -> str:
@@ -155,14 +158,13 @@ class UserServiceAgentImpl(UserServiceAgent):
 
         try:
             response = await self.__session.post(url=url, params={'lat': lat, 'lon': lon})
-            print(await response.text())
             parsed_response = UserAddCityResponse.model_validate_json(await response.text())
             self.__validate_add_city_by_coordinates(parsed_response.status.code)
             return parsed_response.city
         except ValueError as e:
             raise InternalErrorException(self.__BAD_ANSWER_TEXT) from e
         except ClientConnectionError as e:
-            logging.log(level=logging.INFO, msg=str(e))
+            logging.log(level=logging.WARNING, msg=str(e))
             raise InternalErrorException(self.__NO_CONNECTION_TEXT) from e
 
 

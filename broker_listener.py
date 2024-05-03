@@ -1,39 +1,19 @@
 import asyncio
 import logging
 import sys
+from urllib.parse import urlparse, parse_qs
 
 from aiogram import Bot
 from aiogram.enums import ParseMode
-from aiogram.types import LinkPreviewOptions
 
 from services.broker import Broker, BrokerEvent, BrokerException
 from services.broker.impl.rabbitmq_broker import RabbitMQBroker
 from settings import settings
 from utils import create_bot
-from urllib.parse import urlparse, parse_qs
+
+from concert_message_builder import get_date_time, get_lon_lat_from_yandex_map_link
 
 bot: Bot = create_bot(settings)
-
-months = {
-    1: 'января',
-    2: 'февраля',
-    3: 'марта',
-    4: 'апреля',
-    5: 'мая',
-    6: 'июня',
-    7: 'июля',
-    8: 'августа',
-    9: 'сентября',
-    10: 'октября',
-    11: 'ноября',
-    12: 'декабря'
-}
-
-
-def format_number(num: int) -> str:
-    if num < 10:
-        return f'0{num}'
-    return f'{num}'
 
 
 async def on_message(event: BrokerEvent) -> None:
@@ -54,9 +34,7 @@ async def on_message(event: BrokerEvent) -> None:
             txt += f' {artist.name},'
         txt = txt[:-1]
         txt += f'\n\nМесто: город <b>{concert.city}</b>, адрес <b>{concert.address}</b>\nв <i>{concert.place}</i>\n\n'
-        txt += (f'Время: <u>{concert.concert_datetime.day} {months.get(concert.concert_datetime.month)} в '
-                f'{format_number(concert.concert_datetime.time().hour)}:'
-                f'{format_number(concert.concert_datetime.time().minute)}</u>\n\n')
+        txt += f'Время: {get_date_time(concert.concert_datetime, True)}\n\n'
         txt += f'Минимальная цена билета: <b>{concert.min_price.price}</b> <b>{concert.min_price.currency}</b>'
 
         await bot.send_message(chat_id=event.user.telegram_id,
@@ -64,18 +42,12 @@ async def on_message(event: BrokerEvent) -> None:
                                parse_mode=ParseMode.HTML,
                                disable_web_page_preview=True)
 
-        parsed_url = urlparse(concert.map_url)
-        parsed_query = parse_qs(parsed_url.query)
-        lat_lon_parsed = parsed_query.get('l')
-        if lat_lon_parsed is None:
-            return
-        lat_lon_parsed = lat_lon_parsed[0].split(',')
         try:
+            lon, lat = get_lon_lat_from_yandex_map_link(concert.map_url)
             await bot.send_location(chat_id=event.user.telegram_id,
-                                    longitude=float(lat_lon_parsed[0]), latitude=float(lat_lon_parsed[1]))
-        except ValueError:
-            return
-
+                                    longitude=lon, latitude=lat)
+        except ValueError as e:
+            logging.log(level=logging.WARNING, msg=str(e))
 
 
 async def on_error(exception: Exception) -> None:
