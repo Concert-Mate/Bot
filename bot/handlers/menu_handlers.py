@@ -119,9 +119,10 @@ async def show_all_links(callback_query: CallbackQuery, state: FSMContext, agent
         else:
             txt = 'Ваши плейлисты:'
             for playlist in playlists:
-                txt += f'\n{playlist.title}'
+                txt += f'\n<a href=\"{playlist.url}\">{playlist.title}</a>'
             await callback_query.message.edit_text(text=txt, reply_markup=keyboards.get_back_keyboard(),
-                                                   disable_web_page_preview=True)
+                                                   disable_web_page_preview=True,
+                                                   parse_mode=ParseMode.HTML)
     except Exception as e:
         logging.log(level=logging.WARNING, msg=str(e))
         await callback_query.message.edit_text(text=INTERNAL_ERROR_DEFAULT_TEXT,

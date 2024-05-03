@@ -39,9 +39,9 @@ def get_change_data_keyboard() -> InlineKeyboardMarkup:
     )
     builder.row(
         types.InlineKeyboardButton(
-            text='Добавить плейлист', callback_data=KeyboardCallbackData.ADD_LINK),
+            text='Добавить трек-лист', callback_data=KeyboardCallbackData.ADD_LINK),
         types.InlineKeyboardButton(
-            text='Удалить плейлист', callback_data=KeyboardCallbackData.REMOVE_LINK),
+            text='Удалить трек-лист', callback_data=KeyboardCallbackData.REMOVE_LINK),
     )
 
     builder.row(
@@ -126,7 +126,7 @@ def get_user_info_keyboard() -> InlineKeyboardMarkup:
         types.InlineKeyboardButton(
             text='Города', callback_data=KeyboardCallbackData.CITIES),
         types.InlineKeyboardButton(
-            text='Плейлисты', callback_data=KeyboardCallbackData.LINKS),
+            text='Трек-листы', callback_data=KeyboardCallbackData.LINKS),
     )
     builder.row(
         types.InlineKeyboardButton(
