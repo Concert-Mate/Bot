@@ -92,7 +92,7 @@ async def add_one_city(message: Message, state: FSMContext, agent: UserServiceAg
     except CityAlreadyAddedException:
         await message.answer(text='Город уже был добавлен')
     except Exception as e:
-        logging.log(level=logging.INFO, msg=str(e))
+        logging.log(level=logging.WARNING, msg=str(e))
         await message.answer(text=INTERNAL_ERROR_DEFAULT_TEXT)
 
     await message.answer(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_change_data_keyboard())
@@ -129,7 +129,7 @@ async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext, a
                                reply_markup=keyboards.get_change_data_keyboard())
         await state.set_state(MenuStates.CHANGE_DATA)
     except Exception as e:
-        logging.log(level=logging.INFO, msg=str(e))
+        logging.log(level=logging.WARNING, msg=str(e))
         with suppress(TelegramBadRequest):
             if isinstance(callback_query.message, Message):
                 await callback_query.message.edit_text(text=INTERNAL_ERROR_DEFAULT_TEXT,
@@ -164,7 +164,7 @@ async def show_cities_as_inline_keyboard(callback_query: CallbackQuery, state: F
                                                    reply_markup=keyboards.get_inline_keyboard_with_back(cities))
         await state.set_state(ChangeDataStates.REMOVE_CITY)
     except Exception as e:
-        logging.log(level=logging.INFO, msg=str(e))
+        logging.log(level=logging.WARNING, msg=str(e))
         await callback_query.message.edit_text(text=INTERNAL_ERROR_DEFAULT_TEXT,
                                                reply_markup=keyboards.get_back_keyboard())
         await state.set_state(ChangeDataStates.REMOVE_CITY)
@@ -202,7 +202,7 @@ async def remove_city(callback_query: CallbackQuery, state: FSMContext, agent: U
                                reply_markup=keyboards.get_change_data_keyboard())
         await state.set_state(MenuStates.CHANGE_DATA)
     except Exception as e:
-        logging.log(level=logging.INFO, msg=str(e))
+        logging.log(level=logging.WARNING, msg=str(e))
         await bot.edit_message_text(chat_id=callback_query.message.chat.id,
                                     message_id=callback_query.message.message_id,
                                     text=INTERNAL_ERROR_DEFAULT_TEXT, reply_markup=None)
@@ -247,7 +247,7 @@ async def add_one_playlist(message: Message, state: FSMContext, agent: UserServi
     except InvalidTrackListException:
         await message.answer(text='Ссылка недействительна')
     except Exception as e:
-        logging.log(level=logging.INFO, msg=str(e))
+        logging.log(level=logging.WARNING, msg=str(e))
         await message.answer(text=INTERNAL_ERROR_DEFAULT_TEXT)
 
     await message.answer(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_change_data_keyboard())
@@ -297,7 +297,7 @@ async def show_playlists_as_inline_keyboard(callback_query: CallbackQuery, state
                                        playlists))
         await state.set_state(ChangeDataStates.REMOVE_PLAYLIST)
     except Exception as e:
-        logging.log(level=logging.INFO, msg=str(e))
+        logging.log(level=logging.WARNING, msg=str(e))
         await callback_query.message.edit_text(text=INTERNAL_ERROR_DEFAULT_TEXT,
                                                reply_markup=keyboards.get_back_keyboard())
         await state.set_state(ChangeDataStates.REMOVE_PLAYLIST)
@@ -334,7 +334,7 @@ async def remove_playlist(callback_query: CallbackQuery, state: FSMContext, agen
                                reply_markup=keyboards.get_change_data_keyboard())
         await state.set_state(MenuStates.CHANGE_DATA)
     except Exception as e:
-        logging.log(level=logging.INFO, msg=str(e))
+        logging.log(level=logging.WARNING, msg=str(e))
         await bot.edit_message_text(chat_id=callback_query.message.chat.id,
                                     message_id=callback_query.message.message_id,
                                     text=INTERNAL_ERROR_DEFAULT_TEXT, reply_markup=None)

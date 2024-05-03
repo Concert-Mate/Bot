@@ -69,7 +69,7 @@ async def add_first_city_from_location(message: Message, state: FSMContext, agen
     except CityAlreadyAddedException:
         await message.answer(text='Город уже был добавлен')
     except Exception as e:
-        logging.log(level=logging.INFO, msg=str(e))
+        logging.log(level=logging.WARNING, msg=str(e))
         await message.answer(text=INTERNAL_ERROR_DEFAULT_TEXT)
 
 
@@ -99,7 +99,7 @@ async def add_first_city_from_text(message: Message, state: FSMContext, agent: U
     except CityAlreadyAddedException:
         await message.answer('Город уже был добавлен')
     except Exception as e:
-        logging.log(level=logging.INFO, msg=str(e))
+        logging.log(level=logging.WARNING, msg=str(e))
         await message.answer(text=INTERNAL_ERROR_DEFAULT_TEXT)
 
 
@@ -140,7 +140,7 @@ async def add_city_in_loop(message: Message, state: FSMContext, agent: UserServi
     except CityAlreadyAddedException:
         await message.answer('Город уже был добавлен')
     except Exception as e:
-        logging.log(level=logging.INFO, msg=str(e))
+        logging.log(level=logging.WARNING, msg=str(e))
         await message.answer(text=INTERNAL_ERROR_DEFAULT_TEXT)
 
 
@@ -177,7 +177,7 @@ async def apply_city_callback(callback_query: CallbackQuery, state: FSMContext, 
                                text='Город уже был добавлен',
                                reply_markup=keyboards.get_skip_add_cities_markup())
     except Exception as e:
-        logging.log(level=logging.INFO, msg=str(e))
+        logging.log(level=logging.WARNING, msg=str(e))
         with suppress(TelegramBadRequest):
             if isinstance(callback_query.message, Message):
                 await callback_query.message.edit_text(text=INTERNAL_ERROR_DEFAULT_TEXT,
@@ -238,5 +238,5 @@ async def add_link(message: Message, state: FSMContext, agent: UserServiceAgent)
     except TrackListAlreadyAddedException:
         await message.answer(text='Альбом уже был добавлен')
     except Exception as e:
-        logging.log(level=logging.INFO, msg=str(e))
+        logging.log(level=logging.WARNING, msg=str(e))
         await message.answer(text=INTERNAL_ERROR_DEFAULT_TEXT)

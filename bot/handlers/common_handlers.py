@@ -40,7 +40,7 @@ async def command_start(message: Message, state: FSMContext, agent: UserServiceA
         await message.answer(CHOOSE_ACTION_TEXT, reply_markup=get_main_menu_keyboard())
 
     except Exception as e:
-        logging.log(level=logging.INFO, msg=str(e))
+        logging.log(level=logging.WARNING, msg=str(e))
         await message.answer(text=INTERNAL_ERROR_DEFAULT_TEXT)
 
 

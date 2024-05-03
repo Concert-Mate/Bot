@@ -110,9 +110,11 @@ class UserServiceAgent(ABC):
     async def add_user_city_by_coordinates(self, telegram_id: int, lat: float, lon: float) -> str:
         """
         Add city to user by coordinates
+
         :param telegram_id: id of telegram user
         :param lat: latitude
         :param lon: longitude
+        :return string with name of added city
         :raises InternalErrorException: internal error occurred
         :raises UserDoesNotExistException: user isn't registered
         :raises InvalidCityException: no cities by coordinates

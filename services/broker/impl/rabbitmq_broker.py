@@ -54,4 +54,5 @@ class RabbitMQBroker(Broker):
 
     @staticmethod
     def __parse_event(bytez: bytes) -> BrokerEvent:
+        print(bytez.decode())
         return BrokerEvent.model_validate_json(bytez.decode())

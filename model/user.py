@@ -4,5 +4,5 @@ from pydantic import BaseModel, Field
 
 
 class User(BaseModel):
-    telegram_id: int = Field(validation_alias='telegramId')
-    created_at: datetime = Field(validation_alias='creationDatetime')
+    telegram_id: int
+    created_at: datetime = Field(validation_alias='creation_datetime')

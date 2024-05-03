@@ -93,7 +93,7 @@ async def show_cities(callback_query: CallbackQuery, state: FSMContext, agent: U
                 txt += f'\n{city}'
             await callback_query.message.edit_text(text=txt, reply_markup=keyboards.get_back_keyboard())
     except Exception as e:
-        logging.log(level=logging.INFO, msg=str(e))
+        logging.log(level=logging.WARNING, msg=str(e))
         await callback_query.message.edit_text(text=INTERNAL_ERROR_DEFAULT_TEXT,
                                                reply_markup=keyboards.get_back_keyboard())
 
@@ -121,7 +121,7 @@ async def show_all_links(callback_query: CallbackQuery, state: FSMContext, agent
             await callback_query.message.edit_text(text=txt, reply_markup=keyboards.get_back_keyboard(),
                                                    disable_web_page_preview=True)
     except Exception as e:
-        logging.log(level=logging.INFO, msg=str(e))
+        logging.log(level=logging.WARNING, msg=str(e))
         await callback_query.message.edit_text(text=INTERNAL_ERROR_DEFAULT_TEXT,
                                                reply_markup=keyboards.get_back_keyboard())
 
