@@ -27,7 +27,15 @@ class InvalidCityException(UserServiceException):
 
 
 class FuzzyCityException(UserServiceException):
-    pass
+    __variant: str
+
+    def __init__(self, variant: str):
+        self.__variant = variant
+        super().__init__()
+
+    @property
+    def variant(self) -> str:
+        return self.__variant
 
 
 class TrackListAlreadyAddedException(UserServiceException):
@@ -39,4 +47,8 @@ class TrackListNotAddedException(UserServiceException):
 
 
 class InvalidTrackListException(UserServiceException):
+    pass
+
+
+class InvalidCoordsException(UserServiceException):
     pass

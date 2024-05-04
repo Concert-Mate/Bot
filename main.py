@@ -17,6 +17,7 @@ async def main() -> None:
         user_service_port=settings.user_service_port,
     )
 
+    # TODO: сделать логирование в обработке ответов от бэкенда
     bot: Bot = create_bot(settings)
     dp = Dispatcher()
     dp['agent'] = agent

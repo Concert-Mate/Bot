@@ -1,6 +1,8 @@
 from aiogram import types
 from aiogram.types import ReplyKeyboardMarkup, InlineKeyboardMarkup
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
+from .callback_data import KeyboardCallbackData
+from .utils import create_resizable_reply_keyboard, create_resizable_inline_keyboard
 
 
 def get_location_keyboard_markup() -> ReplyKeyboardMarkup:
@@ -9,7 +11,7 @@ def get_location_keyboard_markup() -> ReplyKeyboardMarkup:
         text='Отправить геолокацию',
         request_location=True
     ))
-    return builder.as_markup(resize_keyboard=True)
+    return create_resizable_reply_keyboard(builder)
 
 
 skip_add_cities_texts = 'Прекратить ввод городов'
@@ -22,7 +24,7 @@ def get_skip_add_cities_markup() -> ReplyKeyboardMarkup:
     builder.row(types.KeyboardButton(
         text=skip_add_cities_texts,
     ))
-    return builder.as_markup(resize_keyboard=True)
+    return create_resizable_reply_keyboard(builder)
 
 
 def get_skip_add_links_markup() -> ReplyKeyboardMarkup:
@@ -30,7 +32,7 @@ def get_skip_add_links_markup() -> ReplyKeyboardMarkup:
     builder.row(types.KeyboardButton(
         text=skip_add_links_texts,
     ))
-    return builder.as_markup(resize_keyboard=True)
+    return create_resizable_reply_keyboard(builder)
 
 
 def get_fuzz_variants_markup() -> InlineKeyboardMarkup:
@@ -38,10 +40,10 @@ def get_fuzz_variants_markup() -> InlineKeyboardMarkup:
 
     builder.row(
         types.InlineKeyboardButton(
-            text='Принять', callback_data='apply'
+            text='Принять', callback_data=KeyboardCallbackData.APPLY
         ),
         types.InlineKeyboardButton(
-            text='Отказаться', callback_data='deny'
+            text='Отказаться', callback_data=KeyboardCallbackData.DENY
         )
     )
-    return builder.as_markup(resize_keyboard=True)
+    return create_resizable_inline_keyboard(builder)

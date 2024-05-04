@@ -2,26 +2,30 @@ from aiogram import types
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from model.playlist import Playlist
+from .callback_data import KeyboardCallbackData
+from .utils import create_resizable_inline_keyboard
+
 
 def get_main_menu_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
     builder.row(
         types.InlineKeyboardButton(
-            text='Изменить данные', callback_data='change_data'),
+            text='Изменить данные', callback_data=KeyboardCallbackData.CHANGE_DATA),
         types.InlineKeyboardButton(
-            text='Инструменты', callback_data='tools'),
+            text='Инструменты', callback_data=KeyboardCallbackData.TOOLS),
     )
     builder.row(
         types.InlineKeyboardButton(
-            text='Информация о пользователе', callback_data='user_info'),
+            text='Информация о пользователе', callback_data=KeyboardCallbackData.USER_INFO),
     )
     builder.row(
         types.InlineKeyboardButton(
-            text='F.A.Q', callback_data='FAQ'),
+            text='F.A.Q', callback_data=KeyboardCallbackData.FAQ),
     )
 
-    return builder.as_markup(resize_keyboard=True)
+    return create_resizable_inline_keyboard(builder)
 
 
 def get_change_data_keyboard() -> InlineKeyboardMarkup:
@@ -29,36 +33,36 @@ def get_change_data_keyboard() -> InlineKeyboardMarkup:
 
     builder.row(
         types.InlineKeyboardButton(
-            text='Добавить город', callback_data='add_city'),
+            text='Добавить город', callback_data=KeyboardCallbackData.ADD_CITY),
         types.InlineKeyboardButton(
-            text='Удалить город', callback_data='remove_city'),
+            text='Удалить город', callback_data=KeyboardCallbackData.REMOVE_CITY),
     )
     builder.row(
         types.InlineKeyboardButton(
-            text='Добавить плейлист', callback_data='add_playlist'),
+            text='Добавить трек-лист', callback_data=KeyboardCallbackData.ADD_LINK),
         types.InlineKeyboardButton(
-            text='Удалить плейлист', callback_data='remove_playlist'),
+            text='Удалить трек-лист', callback_data=KeyboardCallbackData.REMOVE_LINK),
     )
 
     builder.row(
         types.InlineKeyboardButton(
-            text='Назад', callback_data='back'),
+            text='Назад', callback_data=KeyboardCallbackData.BACK),
     )
 
-    return builder.as_markup(resize_keyboard=True)
+    return create_resizable_inline_keyboard(builder)
 
 
 def get_cancel_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
         types.InlineKeyboardButton(
-            text='Отменить', callback_data='cancel'),
+            text='Отменить', callback_data=KeyboardCallbackData.CANCEL),
     )
 
-    return builder.as_markup(resize_keyboard=True)
+    return create_resizable_inline_keyboard(builder)
 
 
-def create_inline_keyboard_with_back(rows: list[str]) -> InlineKeyboardMarkup:
+def get_inline_keyboard_with_back(rows: list[str]) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for row in rows:
         builder.row(
@@ -66,10 +70,24 @@ def create_inline_keyboard_with_back(rows: list[str]) -> InlineKeyboardMarkup:
                 text=row, callback_data=row),
         )
     builder.row(types.InlineKeyboardButton(
-        text='Назад', callback_data='back',
+        text='Назад', callback_data=KeyboardCallbackData.BACK,
     ))
 
-    return builder.as_markup(resize_keyboard=True)
+    return create_resizable_inline_keyboard(builder)
+
+
+def get_inline_keyboard_for_playlists(rows: list[Playlist]) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for pos, row in enumerate(rows):
+        builder.row(
+            types.InlineKeyboardButton(
+                text=str(pos + 1), callback_data=row.url),
+        )
+    builder.row(types.InlineKeyboardButton(
+        text='Назад', callback_data=KeyboardCallbackData.BACK,
+    ))
+
+    return create_resizable_inline_keyboard(builder)
 
 
 def get_faq_keyboard() -> InlineKeyboardMarkup:
@@ -77,18 +95,18 @@ def get_faq_keyboard() -> InlineKeyboardMarkup:
 
     builder.row(
         types.InlineKeyboardButton(
-            text='Что умеет этот бот', callback_data='main_info'),
+            text='Что умеет этот бот', callback_data=KeyboardCallbackData.MAIN_INFO),
     )
     builder.row(
         types.InlineKeyboardButton(
-            text='Связь с разработчиком', callback_data='dev_comm'),
+            text='Связь с разработчиком', callback_data=KeyboardCallbackData.DEVELOPMENT_COMMUNICATION),
     )
     builder.row(
         types.InlineKeyboardButton(
-            text='Назад', callback_data='back'),
+            text='Назад', callback_data=KeyboardCallbackData.BACK),
     )
 
-    return builder.as_markup(resize_keyboard=True)
+    return create_resizable_inline_keyboard(builder)
 
 
 def get_back_keyboard() -> InlineKeyboardMarkup:
@@ -96,44 +114,44 @@ def get_back_keyboard() -> InlineKeyboardMarkup:
 
     builder.row(
         types.InlineKeyboardButton(
-            text='Назад', callback_data='back'),
+            text='Назад', callback_data=KeyboardCallbackData.BACK),
     )
 
-    return builder.as_markup(resize_keyboard=True)
+    return create_resizable_inline_keyboard(builder)
 
 
 def get_user_info_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
         types.InlineKeyboardButton(
-            text='Города', callback_data='cities'),
+            text='Города', callback_data=KeyboardCallbackData.CITIES),
         types.InlineKeyboardButton(
-            text='Плейлисты', callback_data='links'),
+            text='Трек-листы', callback_data=KeyboardCallbackData.LINKS),
     )
     builder.row(
         types.InlineKeyboardButton(
-            text='Назад', callback_data='back'),
+            text='Назад', callback_data=KeyboardCallbackData.BACK),
     )
 
-    return builder.as_markup(resize_keyboard=True)
+    return create_resizable_inline_keyboard(builder)
 
 
 def get_tools_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
         types.InlineKeyboardButton(
-            text='Показать возможные концерты', callback_data='show_concerts'),
+            text='Показать возможные концерты', callback_data=KeyboardCallbackData.SHOW_CONCERTS),
     )
+    # builder.row(
+    #     types.InlineKeyboardButton(
+    #         text='Показ уведомлений', callback_data='notice_management'),
+    # )
     builder.row(
         types.InlineKeyboardButton(
-            text='Показ уведомлений', callback_data='notice_management'),
-    )
-    builder.row(
-        types.InlineKeyboardButton(
-            text='Назад', callback_data='back'),
+            text='Назад', callback_data=KeyboardCallbackData.BACK),
     )
 
-    return builder.as_markup(resize_keyboard=True)
+    return create_resizable_inline_keyboard(builder)
 
 
 def get_notify_management_keyboard(is_enabled: bool) -> InlineKeyboardMarkup:
@@ -141,17 +159,17 @@ def get_notify_management_keyboard(is_enabled: bool) -> InlineKeyboardMarkup:
     if is_enabled:
         builder.row(
             types.InlineKeyboardButton(
-                text='Отключить', callback_data='disable'),
+                text='Отключить', callback_data=KeyboardCallbackData.DISABLE),
         )
     else:
         builder.row(
             types.InlineKeyboardButton(
-                text='Включить', callback_data='enable'),
+                text='Включить', callback_data=KeyboardCallbackData.ENABLE),
         )
 
     builder.row(
         types.InlineKeyboardButton(
-            text='Назад', callback_data='back'),
+            text='Назад', callback_data=KeyboardCallbackData.BACK),
     )
 
-    return builder.as_markup(resize_keyboard=True)
+    return create_resizable_inline_keyboard(builder)
