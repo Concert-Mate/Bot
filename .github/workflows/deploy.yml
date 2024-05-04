@@ -3,7 +3,7 @@ name: Deploy
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   deploy:
@@ -22,7 +22,7 @@ jobs:
             whoami
             cd ~/Bot
             git reset --hard
-            git pull origin main
+            git pull origin master
             cat << EOF > .env
             BOT_TOKEN=7146314976:AAFhfwauPwHbhsGU3UkLr7-Uc36evBn6JXk
 
