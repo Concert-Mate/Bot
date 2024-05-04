@@ -1,0 +1,38 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: executing remote ssh commands using ssh key
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          port: ${{ secrets.PORT }}
+          debug: true
+          script: |
+            whoami
+            cd ~/Bot
+            git reset --hard
+            git pull origin main
+            cat << EOF > .env
+            BOT_TOKEN=7146314976:AAFhfwauPwHbhsGU3UkLr7-Uc36evBn6JXk
+
+            RABBITMQ_USER=rabbit-admin
+            RABBITMQ_PASSWORD=rabbit-password
+            RABBITMQ_QUEUE=new-concerts-queue
+            RABBITMQ_HOST=localhost
+            RABBITMQ_PORT=5672
+
+            USER_SERVICE_HOST=localhost
+            USER_SERVICE_PORT=8080
+            EOF
+            docker compose -f deploy.yml up --build -d --force-recreate
