@@ -24,13 +24,13 @@ jobs:
             git reset --hard
             git pull origin master
             cat << EOF > .env
-            BOT_TOKEN=7146314976:AAFhfwauPwHbhsGU3UkLr7-Uc36evBn6JXk
+            BOT_TOKEN=${{ secrets.BOT_TOKEN }}
 
-            RABBITMQ_USER=rabbit-admin
-            RABBITMQ_PASSWORD=rabbit-password
-            RABBITMQ_QUEUE=new-concerts-queue
-            RABBITMQ_HOST=localhost
-            RABBITMQ_PORT=5672
+            RABBITMQ_USER=${{ secrets.RABBITMQ_USER }}
+            RABBITMQ_PASSWORD=${{ secrets.RABBITMQ_PASSWORD }}
+            RABBITMQ_QUEUE=${{ secrets.RABBITMQ_QUEUE }}
+            RABBITMQ_HOST=${{ secrets.HOST }}
+            RABBITMQ_PORT=RABBITMQ_PORT=${{ secrets.RABBITMQ_PORT }}
 
             USER_SERVICE_HOST=localhost
             USER_SERVICE_PORT=8080
