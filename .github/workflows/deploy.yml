@@ -26,11 +26,11 @@ jobs:
             cat << EOF > .env
             BOT_TOKEN=${{ secrets.BOT_TOKEN }}
 
-            RABBITMQ_USER=${{ secrets.RABBITMQ_USER }}
-            RABBITMQ_PASSWORD=${{ secrets.RABBITMQ_PASSWORD }}
-            RABBITMQ_QUEUE=${{ secrets.RABBITMQ_QUEUE }}
-            RABBITMQ_HOST=${{ secrets.HOST }}
+            RABBITMQ_HOST=${{ secrets.RABBITMQ_HOST }}
             RABBITMQ_PORT=${{ secrets.RABBITMQ_PORT }}
+            RABBITMQ_USER=${{ secrets.RABBITMQ_DEFAULT_USER }}
+            RABBITMQ_PASSWORD=${{ secrets.RABBITMQ_DEFAULT_PASS  }}
+            RABBITMQ_QUEUE=${{ secrets.RABBITMQ_QUEUE }}
 
             USER_SERVICE_HOST=${{ secrets.HOST }}
             USER_SERVICE_PORT=${{ secrets.USER_SERVICE_PORT }}
