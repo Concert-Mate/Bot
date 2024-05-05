@@ -33,7 +33,13 @@ async def on_message(event: BrokerEvent) -> None:
         for artist in concert.artists:
             txt += f' {artist.name},'
         txt = txt[:-1]
-        txt += f'\n\nМесто: город <b>{concert.city}</b>, адрес <b>{concert.address}</b>\nв <i>{concert.place}</i>\n\n'
+
+        txt += f'\n\nМесто: город <b>{concert.city}</b>, адрес <b>{concert.address}</b>\n'
+        if concert.place is not None:
+            txt += f'в <i>{concert.place}</i>\n\n'
+        else:
+            txt += '\n'
+
         if concert.concert_datetime is not None:
             txt += f'Время: {get_date_time(concert.concert_datetime, True)}\n\n'
         if concert.min_price is not None:

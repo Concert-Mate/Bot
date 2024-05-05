@@ -8,9 +8,9 @@ from .response_status import ResponseStatus
 
 class UserTrackListsResponse(BaseModel):
     status: ResponseStatus
-    tracks_lists: list[Playlist]
+    track_lists: list[Playlist]
 
 
 class UserTrackListResponse(BaseModel):
     status: ResponseStatus
-    tracks_list: Optional[Playlist]
+    track_list: Optional[Playlist]
