@@ -32,7 +32,7 @@ jobs:
             RABBITMQ_HOST=${{ secrets.HOST }}
             RABBITMQ_PORT=${{ secrets.RABBITMQ_PORT }}
 
-            USER_SERVICE_HOST=localhost
-            USER_SERVICE_PORT=8080
+            USER_SERVICE_HOST=${{ secrets.HOST }}
+            USER_SERVICE_PORT=${{ secrets.USER_SERVICE_PORT }}
             EOF
             docker compose -f deploy.yml up --build -d --force-recreate
