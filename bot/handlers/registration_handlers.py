@@ -59,6 +59,7 @@ async def add_first_city_from_location(message: Message, state: FSMContext, agen
     try:
         city = await agent.add_user_city_by_coordinates(user_id, message.location.latitude, message.location.longitude)
         await message.answer(text=f'Город {city} добавлен успешно')
+        await state.update_data(is_first_city=False)
         await message.answer(text=__after_first_city_msg, reply_markup=keyboards.get_skip_add_cities_markup())
         await state.set_state(state=RegistrationStates.ADD_CITIES_IN_LOOP)
         return
@@ -88,6 +89,7 @@ async def add_first_city_from_text(message: Message, state: FSMContext, agent: U
         await agent.add_user_city(user_id, city)
         await message.answer(text=f'Город {city} добавлен успешно.')
         await message.answer(text=__after_first_city_msg, reply_markup=keyboards.get_skip_add_cities_markup())
+        await state.update_data(is_first_city=False)
         await state.set_state(state=RegistrationStates.ADD_CITIES_IN_LOOP)
     except InvalidCityException:
         await message.answer(text='Некорректно введен город или его не существует')

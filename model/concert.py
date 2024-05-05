@@ -10,10 +10,10 @@ from .price import Price
 class Concert(BaseModel):
     title: str
     afisha_url: str
-    city: Optional[str]
+    city: str
     place: Optional[str]
-    address: Optional[str]
-    concert_datetime: Optional[datetime] = Field(validation_alias='datetime')
+    address: str
+    concert_datetime: datetime = Field(validation_alias='datetime')
     map_url: Optional[str]
     images: list[str]
     min_price: Optional[Price]

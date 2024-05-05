@@ -64,9 +64,9 @@ class UserServiceAgentImpl(UserServiceAgent):
             print(await response.text())
             parsed_response = UserTrackListResponse.model_validate_json(await response.text())
             self.__validate_add_link(parsed_response.status.code)
-            if parsed_response.tracks_list is None:
+            if parsed_response.track_list is None:
                 raise InternalErrorException('No track list when add user track list is successful')
-            return parsed_response.tracks_list
+            return parsed_response.track_list
         except ValueError as e:
             raise InternalErrorException(self.__BAD_ANSWER_TEXT) from e
         except ClientConnectionError as e:
@@ -118,7 +118,7 @@ class UserServiceAgentImpl(UserServiceAgent):
             response = await self.__session.get(url=url)
             parsed_response = UserTrackListsResponse.model_validate_json(await response.text())
             self.__validate_get_links(parsed_response.status.code)
-            return parsed_response.tracks_lists
+            return parsed_response.track_lists
         except ValueError as e:
             raise InternalErrorException(self.__BAD_ANSWER_TEXT) from e
         except ClientConnectionError as e:
@@ -181,7 +181,7 @@ class UserServiceAgentImpl(UserServiceAgent):
 
     @staticmethod
     def __get_user_track_lists_url(telegram_id: int) -> str:
-        return f'{UserServiceAgentImpl.__get_users_url(telegram_id)}/tracks-lists'
+        return f'{UserServiceAgentImpl.__get_users_url(telegram_id)}/track-lists'
 
     @staticmethod
     def __get_user_concerts_url(telegram_id: int) -> str:

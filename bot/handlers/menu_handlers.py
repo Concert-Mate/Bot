@@ -91,8 +91,8 @@ async def show_cities(callback_query: CallbackQuery, state: FSMContext, agent: U
                                                    reply_markup=keyboards.get_back_keyboard())
         else:
             txt = 'Ваши города:'
-            for city in cities:
-                txt += f'\n{city}'
+            for pos, city in enumerate(cities):
+                txt += f'\n{pos+1}.{city}'
             await callback_query.message.edit_text(text=txt, reply_markup=keyboards.get_back_keyboard())
     except Exception as e:
         logging.log(level=logging.WARNING, msg=str(e))
@@ -118,8 +118,8 @@ async def show_all_links(callback_query: CallbackQuery, state: FSMContext, agent
                                                    reply_markup=keyboards.get_back_keyboard())
         else:
             txt = 'Ваши трек-листы:'
-            for playlist in playlists:
-                txt += f'\n<a href=\"{playlist.url}\">{playlist.title}</a>'
+            for pos, playlist in enumerate(playlists):
+                txt += f'\n{pos + 1}.<a href=\"{playlist.url}\">{playlist.title}</a>'
             await callback_query.message.edit_text(text=txt, reply_markup=keyboards.get_back_keyboard(),
                                                    disable_web_page_preview=True,
                                                    parse_mode=ParseMode.HTML)
@@ -190,8 +190,14 @@ async def show_all_concerts(callback_query: CallbackQuery, state: FSMContext, ag
                 for artist in concert.artists:
                     txt += f' {artist.name},'
                 txt = txt[:-1]
+
                 txt += (f'\n\nМесто: город <b>{concert.city}</b>,'
-                        f' адрес <b>{concert.address}</b>\nв <i>{concert.place}</i>\n\n')
+                        f' адрес <b>{concert.address}</b>\n')
+                if concert.place is not None:
+                    txt += f'в <i>{concert.place}</i>\n\n'
+                else:
+                    txt += '\n'
+
                 if concert.concert_datetime is not None:
                     txt += f'Время: {get_date_time(concert.concert_datetime, True)}\n\n'
                 if concert.min_price is not None:
