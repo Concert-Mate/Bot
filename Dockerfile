@@ -8,4 +8,4 @@ RUN pip install poetry
 
 RUN poetry config virtualenvs.create false && poetry install --no-dev
 
-CMD ["poetry", "run", "python", "main.py"]
+CMD poetry run python main.py & poetry run python broker_listener.py
