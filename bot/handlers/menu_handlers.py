@@ -1,4 +1,5 @@
 import logging
+from asyncio import sleep
 from contextlib import suppress
 
 from aiogram import Router, F
@@ -170,13 +171,15 @@ async def show_all_concerts(callback_query: CallbackQuery, state: FSMContext, ag
     await bot.delete_message(chat_id=callback_query.message.chat.id, message_id=callback_query.message.message_id)
 
     try:
-        act = await bot.send_chat_action(chat_id=callback_query.message.chat.id, action='typing')
+        await bot.send_chat_action(chat_id=callback_query.message.chat.id, action='typing')
         concerts = await agent.get_user_concerts(user_id)
 
         if len(concerts) == 0:
             await bot.send_message(chat_id=callback_query.message.chat.id, text='Концерты не обнаружены')
         else:
-            for concert in concerts:
+            for pos, concert in enumerate(concerts):
+                if pos % 30 == 0 and pos != 0:
+                    await sleep(1)
                 txt = ''
 
                 if len(concert.artists) != 1 or concert.artists[0].name != concert.title:
