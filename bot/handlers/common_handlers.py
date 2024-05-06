@@ -1,4 +1,5 @@
 import logging
+
 from aiogram import Router
 from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
@@ -8,6 +9,7 @@ from bot.keyboards import get_location_keyboard_markup, get_main_menu_keyboard
 from bot.states import RegistrationStates, MenuStates
 from services.user_service import UserServiceAgent, UserAlreadyExistsException
 from .constants import INTERNAL_ERROR_DEFAULT_TEXT, CHOOSE_ACTION_TEXT
+from .user_data_manager import get_last_keyboard_id, set_last_keyboard_id
 
 common_router = Router()
 
@@ -19,8 +21,6 @@ async def command_start(message: Message, state: FSMContext, agent: UserServiceA
     user_id = message.from_user.id
 
     await state.update_data(notices_enabled=True)  # Temp!
-    await state.update_data(cities=[])
-    await state.update_data(links=[])
 
     try:
         await agent.create_user(user_id)
@@ -28,7 +28,9 @@ async def command_start(message: Message, state: FSMContext, agent: UserServiceA
                                   f' поскольку вы в нашем боте еще не зарегистрированы - самое время сделать это.'
                                   f' Введите название города, в котором желаете посещать концерты, или нажмите кнопку'
                                   f' ,чтобы отправить геолокацию.', reply_markup=get_location_keyboard_markup())
+
         await state.update_data(is_first_city=True)
+        await set_last_keyboard_id(-1, state)
         await state.set_state(RegistrationStates.ADD_FIRST_CITY)
     except UserAlreadyExistsException:
         await message.answer(text=f'Привет, {message.from_user.username},'
@@ -36,8 +38,15 @@ async def command_start(message: Message, state: FSMContext, agent: UserServiceA
                              reply_markup=ReplyKeyboardRemove())
         await state.set_state(MenuStates.MAIN_MENU)
         await state.update_data(is_first_city=False)
+        user_data = await state.get_data()
+        bot = message.bot
+        try:
+            await bot.delete_message(chat_id=message.chat.id, message_id=get_last_keyboard_id(user_data))
+        except Exception as ex:
+            logging.log(level=logging.ERROR, msg=str(ex))
 
-        await message.answer(CHOOSE_ACTION_TEXT, reply_markup=get_main_menu_keyboard())
+        msg = await message.answer(CHOOSE_ACTION_TEXT, reply_markup=get_main_menu_keyboard())
+        await set_last_keyboard_id(msg.message_id, state)
 
     except Exception as e:
         logging.log(level=logging.WARNING, msg=str(e))

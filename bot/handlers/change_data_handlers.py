@@ -13,7 +13,9 @@ from bot.states import MenuStates, ChangeDataStates
 from services.user_service import (UserServiceAgent, InvalidCityException,
                                    FuzzyCityException, CityAlreadyAddedException,
                                    TrackListAlreadyAddedException, InvalidTrackListException)
-from .constants import TEXT_WITHOUT_COMMANDS_FILTER, INTERNAL_ERROR_DEFAULT_TEXT, CHOOSE_ACTION_TEXT
+from .constants import (TEXT_WITHOUT_COMMANDS_FILTER, INTERNAL_ERROR_DEFAULT_TEXT,
+                        CHOOSE_ACTION_TEXT, MAXIMUM_CITY_LEN, MAXIMUM_LINK_LEN)
+from .user_data_manager import set_last_keyboard_id, get_last_keyboard_id
 
 change_data_router = Router()
 
@@ -21,7 +23,8 @@ change_data_router = Router()
 async def __send_fuzz_variant_message(city: str, variant: str, message: Message, state: FSMContext) -> None:
     await message.answer(text=f'Города {city} не существует, может быть вы имели ввиду {variant}?')
     await state.update_data(variant=variant)
-    await message.answer(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_fuzz_variants_markup())
+    msg = await message.answer(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_fuzz_variants_markup())
+    await set_last_keyboard_id(msg.message_id, state)
     await state.set_state(ChangeDataStates.CITY_NAME_IS_FUZZY)
 
 
@@ -47,9 +50,11 @@ async def resent(message: Message, state: FSMContext) -> None:
     bot = message.bot
     if bot is None:
         return
-    await bot.delete_message(chat_id=message.chat.id, message_id=(message.message_id - 1))
-    await bot.send_message(chat_id=message.chat.id, text=CHOOSE_ACTION_TEXT,
-                           reply_markup=keyboards.get_change_data_keyboard())
+    user_data = await state.get_data()
+    await bot.delete_message(chat_id=message.chat.id, message_id=get_last_keyboard_id(user_data))
+    msg = await bot.send_message(chat_id=message.chat.id, text=CHOOSE_ACTION_TEXT,
+                                 reply_markup=keyboards.get_change_data_keyboard())
+    await set_last_keyboard_id(msg.message_id, state)
 
 
 @change_data_router.callback_query(ChangeDataStates.ENTER_NEW_CITY, F.data == KeyboardCallbackData.CANCEL)
@@ -65,7 +70,6 @@ async def add_one_city(message: Message, state: FSMContext, agent: UserServiceAg
     bot = message.bot
     if bot is None:
         return
-    await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id - 1)
     city = message.text
 
     if city is None:
@@ -76,6 +80,16 @@ async def add_one_city(message: Message, state: FSMContext, agent: UserServiceAg
         return
     user_id = message.from_user.id
     if user_id is None:
+        return
+
+    user_data = await state.get_data()
+    await bot.delete_message(chat_id=message.chat.id, message_id=get_last_keyboard_id(user_data))
+
+    if len(city) > MAXIMUM_CITY_LEN:
+        await message.answer(text='Слишком длинное название города')
+        msg = await message.answer(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_change_data_keyboard())
+        await set_last_keyboard_id(msg.message_id)
+        await state.set_state(MenuStates.CHANGE_DATA)
         return
 
     try:
@@ -95,7 +109,8 @@ async def add_one_city(message: Message, state: FSMContext, agent: UserServiceAg
         logging.log(level=logging.WARNING, msg=str(e))
         await message.answer(text=INTERNAL_ERROR_DEFAULT_TEXT)
 
-    await message.answer(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_change_data_keyboard())
+    msg = await message.answer(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_change_data_keyboard())
+    await set_last_keyboard_id(msg.message_id, state)
     await state.set_state(MenuStates.CHANGE_DATA)
 
 
@@ -118,15 +133,17 @@ async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext, a
         await agent.add_user_city(user_id, city)
         await bot.edit_message_text(chat_id=callback_query.message.chat.id, text='Город успешно добавлен',
                                     message_id=callback_query.message.message_id, reply_markup=None)
-        await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
-                               reply_markup=keyboards.get_change_data_keyboard())
+        msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
+                                     reply_markup=keyboards.get_change_data_keyboard())
+        await set_last_keyboard_id(msg.message_id, state)
         await state.set_state(MenuStates.CHANGE_DATA)
 
     except CityAlreadyAddedException:
         await bot.edit_message_text(chat_id=callback_query.message.chat.id, text='Город уже был добавлен',
                                     message_id=callback_query.message.message_id, reply_markup=None)
-        await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
-                               reply_markup=keyboards.get_change_data_keyboard())
+        msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
+                                     reply_markup=keyboards.get_change_data_keyboard())
+        await set_last_keyboard_id(msg.message_id, state)
         await state.set_state(MenuStates.CHANGE_DATA)
     except Exception as e:
         logging.log(level=logging.WARNING, msg=str(e))
@@ -198,16 +215,18 @@ async def remove_city(callback_query: CallbackQuery, state: FSMContext, agent: U
         await bot.edit_message_text(chat_id=callback_query.message.chat.id,
                                     message_id=callback_query.message.message_id,
                                     text=f'Город {city} успешно удалён')
-        await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
-                               reply_markup=keyboards.get_change_data_keyboard())
+        msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
+                                     reply_markup=keyboards.get_change_data_keyboard())
+        await set_last_keyboard_id(msg.message_id, state)
         await state.set_state(MenuStates.CHANGE_DATA)
     except Exception as e:
         logging.log(level=logging.WARNING, msg=str(e))
         await bot.edit_message_text(chat_id=callback_query.message.chat.id,
                                     message_id=callback_query.message.message_id,
                                     text=INTERNAL_ERROR_DEFAULT_TEXT, reply_markup=None)
-        await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
-                               reply_markup=keyboards.get_change_data_keyboard())
+        msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
+                                     reply_markup=keyboards.get_change_data_keyboard())
+        await set_last_keyboard_id(msg.message_id, state)
         await state.set_state(MenuStates.CHANGE_DATA)
 
 
@@ -228,7 +247,7 @@ async def add_one_playlist(message: Message, state: FSMContext, agent: UserServi
     bot = message.bot
     if bot is None:
         return
-    await bot.delete_message(message.chat.id, message.message_id - 1)
+    user_data = await state.get_data()
     link = message.text
     if link is None:
         await message.answer(text='Неверный формат текста')
@@ -237,6 +256,15 @@ async def add_one_playlist(message: Message, state: FSMContext, agent: UserServi
         return
     user_id = message.from_user.id
     if user_id is None:
+        return
+
+    await bot.delete_message(chat_id=message.chat.id, message_id=get_last_keyboard_id(user_data))
+
+    if len(link) > MAXIMUM_LINK_LEN:
+        await message.answer(text='Слишком длинная ссылка')
+        msg = await message.answer(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_change_data_keyboard())
+        await set_last_keyboard_id(msg.message_id, state)
+        await state.set_state(MenuStates.CHANGE_DATA)
         return
 
     try:
@@ -250,7 +278,8 @@ async def add_one_playlist(message: Message, state: FSMContext, agent: UserServi
         logging.log(level=logging.WARNING, msg=str(e))
         await message.answer(text=INTERNAL_ERROR_DEFAULT_TEXT)
 
-    await message.answer(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_change_data_keyboard())
+    msg = await message.answer(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_change_data_keyboard())
+    await set_last_keyboard_id(msg.message_id, state)
     await state.set_state(MenuStates.CHANGE_DATA)
 
 
@@ -330,14 +359,17 @@ async def remove_playlist(callback_query: CallbackQuery, state: FSMContext, agen
         await bot.edit_message_text(chat_id=callback_query.message.chat.id,
                                     message_id=callback_query.message.message_id,
                                     text=f'Трек-лист успешно удалён', reply_markup=None)
-        await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
-                               reply_markup=keyboards.get_change_data_keyboard())
+
+        msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
+                                     reply_markup=keyboards.get_change_data_keyboard())
+        await set_last_keyboard_id(msg.message_id, state)
         await state.set_state(MenuStates.CHANGE_DATA)
     except Exception as e:
         logging.log(level=logging.WARNING, msg=str(e))
         await bot.edit_message_text(chat_id=callback_query.message.chat.id,
                                     message_id=callback_query.message.message_id,
                                     text=INTERNAL_ERROR_DEFAULT_TEXT, reply_markup=None)
-        await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
-                               reply_markup=keyboards.get_change_data_keyboard())
+        msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
+                                     reply_markup=keyboards.get_change_data_keyboard())
+        await state.update_data(last_keyboard_id=msg.message_id)
         await state.set_state(MenuStates.CHANGE_DATA)
