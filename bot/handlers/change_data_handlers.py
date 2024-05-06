@@ -88,7 +88,7 @@ async def add_one_city(message: Message, state: FSMContext, agent: UserServiceAg
     if len(city) > MAXIMUM_CITY_LEN:
         await message.answer(text='Слишком длинное название города')
         msg = await message.answer(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_change_data_keyboard())
-        await set_last_keyboard_id(msg.message_id)
+        await set_last_keyboard_id(msg.message_id, state)
         await state.set_state(MenuStates.CHANGE_DATA)
         return
 

@@ -40,10 +40,11 @@ async def command_start(message: Message, state: FSMContext, agent: UserServiceA
         await state.update_data(is_first_city=False)
         user_data = await state.get_data()
         bot = message.bot
-        try:
-            await bot.delete_message(chat_id=message.chat.id, message_id=get_last_keyboard_id(user_data))
-        except Exception as ex:
-            logging.log(level=logging.ERROR, msg=str(ex))
+        if bot is not None:
+            try:
+                await bot.delete_message(chat_id=message.chat.id, message_id=get_last_keyboard_id(user_data))
+            except Exception as ex:
+                logging.log(level=logging.ERROR, msg=str(ex))
 
         msg = await message.answer(CHOOSE_ACTION_TEXT, reply_markup=get_main_menu_keyboard())
         await set_last_keyboard_id(msg.message_id, state)
