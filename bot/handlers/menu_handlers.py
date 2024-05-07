@@ -97,7 +97,6 @@ async def show_cities(callback_query: CallbackQuery, state: FSMContext, agent: U
 
     await state.set_state(MenuStates.WAITING)
     await callback_query.answer()
-    await sleep(4)
     try:
         cities = await agent.get_user_cities(user_id)
         if len(cities) == 0:
@@ -182,7 +181,7 @@ async def show_tools(callback_query: CallbackQuery, state: FSMContext) -> None:
         await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_tools_keyboard())
 
 
-@menu_router.callback_query(MenuStates.TOOLS, F.data == KeyboardCallbackData.SHOW_CONCERTS)
+@menu_router.callback_query(MenuStates.MAIN_MENU, F.data == KeyboardCallbackData.SHOW_CONCERTS)
 async def show_all_concerts(callback_query: CallbackQuery, state: FSMContext, agent: UserServiceAgent) -> None:
     bot = callback_query.bot
     if bot is None or callback_query is None or callback_query.message is None:
@@ -250,10 +249,10 @@ async def show_all_concerts(callback_query: CallbackQuery, state: FSMContext, ag
         await bot.send_message(chat_id=callback_query.message.chat.id, text=INTERNAL_ERROR_DEFAULT_TEXT)
 
     msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
-                                 reply_markup=keyboards.get_tools_keyboard())
+                                 reply_markup=keyboards.get_main_menu_keyboard())
 
     await set_last_keyboard_id(msg.message_id, state)
-    await state.set_state(MenuStates.TOOLS)
+    await state.set_state(MenuStates.MAIN_MENU)
 
 
 @menu_router.callback_query(MenuStates.TOOLS, F.data == KeyboardCallbackData.BACK)

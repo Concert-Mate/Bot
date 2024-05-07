@@ -13,8 +13,10 @@ def get_main_menu_keyboard() -> InlineKeyboardMarkup:
     builder.row(
         types.InlineKeyboardButton(
             text='Изменить данные', callback_data=KeyboardCallbackData.CHANGE_DATA),
+    )
+    builder.row(
         types.InlineKeyboardButton(
-            text='Инструменты', callback_data=KeyboardCallbackData.TOOLS),
+            text='Показать возможные концерты', callback_data=KeyboardCallbackData.SHOW_CONCERTS),
     )
     builder.row(
         types.InlineKeyboardButton(
