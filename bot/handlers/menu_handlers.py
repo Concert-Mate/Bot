@@ -107,8 +107,10 @@ async def show_cities(callback_query: CallbackQuery, state: FSMContext, agent: U
             txt = 'Ваши города:'
             for pos, city in enumerate(cities):
                 txt += f'\n{pos + 1}.{city}'
+
             with suppress(TelegramBadRequest):
                 await callback_query.message.edit_text(text=txt, reply_markup=keyboards.get_back_keyboard())
+
     except Exception as e:
         logging.log(level=logging.WARNING, msg=str(e))
         with suppress(TelegramBadRequest):
@@ -191,9 +193,11 @@ async def show_all_concerts(callback_query: CallbackQuery, state: FSMContext, ag
     user_id = callback_query.from_user.id
     if user_id is None:
         return
+
     with suppress(TelegramBadRequest):
         await bot.delete_message(chat_id=callback_query.message.chat.id, message_id=callback_query.message.message_id)
     await state.set_state(MenuStates.WAITING)
+
     try:
         await bot.send_chat_action(chat_id=callback_query.message.chat.id, action='typing')
         concerts = await agent.get_user_concerts(user_id)
@@ -253,6 +257,7 @@ async def show_all_concerts(callback_query: CallbackQuery, state: FSMContext, ag
 
     await set_last_keyboard_id(msg.message_id, state)
     await state.set_state(MenuStates.MAIN_MENU)
+
 
 
 @menu_router.callback_query(MenuStates.TOOLS, F.data == KeyboardCallbackData.BACK)

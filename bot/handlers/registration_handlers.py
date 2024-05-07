@@ -72,7 +72,9 @@ async def add_first_city_from_location(message: Message, state: FSMContext, agen
 async def add_first_city_from_text(message: Message, state: FSMContext, agent: UserServiceAgent) -> None:
     city = message.text
     if city is None:
+
         await message.answer(text='Неверный формат текста', reply_markup=keyboards.get_location_keyboard_markup())
+
         return
     if message.from_user is None:
         return
@@ -136,6 +138,7 @@ async def add_city_in_loop(message: Message, state: FSMContext, agent: UserServi
 
     try:
         await agent.add_user_city(user_id, city)
+
         await message.answer(text=f'Город {city} добавлен успешно.\n'
                                   f'Напоминание: можно ввести /skip',
                              reply_markup=keyboards.get_skip_add_cities_markup())
@@ -172,6 +175,7 @@ async def apply_city_callback(callback_query: CallbackQuery, state: FSMContext, 
     await callback_query.answer()
     try:
         await agent.add_user_city(user_id, city)
+
         with suppress(TelegramBadRequest):
             await bot.delete_message(chat_id=callback_query.message.chat.id, message_id=get_last_keyboard_id(user_data))
         if user_data['is_first_city']:
@@ -191,8 +195,10 @@ async def apply_city_callback(callback_query: CallbackQuery, state: FSMContext, 
         await state.set_state(RegistrationStates.ADD_CITIES_IN_LOOP)
 
     except CityAlreadyAddedException:
+
         with suppress(TelegramBadRequest):
             await bot.delete_message(chat_id=callback_query.message.chat.id, message_id=get_last_keyboard_id(user_data))
+
         await bot.send_message(chat_id=callback_query.message.chat.id,
                                text='Город уже был добавлен',
                                reply_markup=keyboards.get_skip_add_cities_markup())
@@ -210,8 +216,10 @@ async def deny_city_variant(callback_query: CallbackQuery, state: FSMContext) ->
     if bot is None or callback_query is None or callback_query.message is None:
         return
     user_data = await state.get_data()
+
     with suppress(TelegramBadRequest):
         await bot.delete_message(chat_id=callback_query.message.chat.id, message_id=get_last_keyboard_id(user_data))
+
     if user_data['is_first_city']:
         await bot.send_message(chat_id=callback_query.message.chat.id,
                                text='Вариант был отклонён',

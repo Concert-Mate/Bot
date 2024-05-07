@@ -53,8 +53,10 @@ async def resent(message: Message, state: FSMContext) -> None:
     if bot is None:
         return
     user_data = await state.get_data()
+
     with suppress(TelegramBadRequest):
         await bot.delete_message(chat_id=message.chat.id, message_id=get_last_keyboard_id(user_data))
+
     msg = await bot.send_message(chat_id=message.chat.id, text=CHOOSE_ACTION_TEXT,
                                  reply_markup=keyboards.get_change_data_keyboard())
     await set_last_keyboard_id(msg.message_id, state)
@@ -88,9 +90,11 @@ async def add_one_city(message: Message, state: FSMContext, agent: UserServiceAg
         return
 
     user_data = await state.get_data()
+
     await state.set_state(MenuStates.WAITING)
     with suppress(TelegramBadRequest):
         await bot.delete_message(chat_id=message.chat.id, message_id=get_last_keyboard_id(user_data))
+
 
     if len(city) > MAXIMUM_CITY_LEN:
         await message.answer(text='Слишком длинное название города')
@@ -141,6 +145,7 @@ async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext, a
     city = user_data['variant']
     try:
         await agent.add_user_city(user_id, city)
+
         with suppress(TelegramBadRequest):
             await bot.edit_message_text(chat_id=callback_query.message.chat.id, text='Город успешно добавлен',
                                         message_id=callback_query.message.message_id, reply_markup=None)
@@ -150,6 +155,7 @@ async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext, a
         await state.set_state(MenuStates.CHANGE_DATA)
 
     except CityAlreadyAddedException:
+
         with suppress(TelegramBadRequest):
             await bot.edit_message_text(chat_id=callback_query.message.chat.id, text='Город уже был добавлен',
                                         message_id=callback_query.message.message_id, reply_markup=None)
@@ -231,20 +237,24 @@ async def remove_city(callback_query: CallbackQuery, state: FSMContext, agent: U
 
     try:
         await agent.delete_user_city(user_id, city)
+
         with suppress(TelegramBadRequest):
             await bot.edit_message_text(chat_id=callback_query.message.chat.id,
                                         message_id=callback_query.message.message_id,
                                         text=f'Город {city} успешно удалён')
+
         msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
                                      reply_markup=keyboards.get_change_data_keyboard())
         await set_last_keyboard_id(msg.message_id, state)
         await state.set_state(MenuStates.CHANGE_DATA)
     except Exception as e:
         logging.log(level=logging.WARNING, msg=str(e))
+
         with suppress(TelegramBadRequest):
             await bot.edit_message_text(chat_id=callback_query.message.chat.id,
                                         message_id=callback_query.message.message_id,
                                         text=INTERNAL_ERROR_DEFAULT_TEXT, reply_markup=None)
+
         msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
                                      reply_markup=keyboards.get_change_data_keyboard())
         await set_last_keyboard_id(msg.message_id, state)
@@ -283,6 +293,15 @@ async def add_one_playlist(message: Message, state: FSMContext, agent: UserServi
     with suppress(TelegramBadRequest):
         await bot.delete_message(chat_id=message.chat.id, message_id=get_last_keyboard_id(user_data))
     await state.set_state(MenuStates.WAITING)
+    if len(link) > MAXIMUM_LINK_LEN:
+        await message.answer(text='Слишком длинная ссылка')
+        msg = await message.answer(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_change_data_keyboard())
+        await set_last_keyboard_id(msg.message_id, state)
+        await state.set_state(MenuStates.CHANGE_DATA)
+        return
+
+    await bot.delete_message(chat_id=message.chat.id, message_id=get_last_keyboard_id(user_data))
+
     if len(link) > MAXIMUM_LINK_LEN:
         await message.answer(text='Слишком длинная ссылка')
         msg = await message.answer(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_change_data_keyboard())
@@ -386,6 +405,7 @@ async def remove_playlist(callback_query: CallbackQuery, state: FSMContext, agen
     await state.set_state(MenuStates.WAITING)
     try:
         await agent.delete_user_track_list(user_id, playlist)
+
         with suppress(TelegramBadRequest):
             await bot.edit_message_text(chat_id=callback_query.message.chat.id,
                                         message_id=callback_query.message.message_id,
@@ -397,10 +417,12 @@ async def remove_playlist(callback_query: CallbackQuery, state: FSMContext, agen
         await state.set_state(MenuStates.CHANGE_DATA)
     except Exception as e:
         logging.log(level=logging.WARNING, msg=str(e))
+
         with suppress(TelegramBadRequest):
             await bot.edit_message_text(chat_id=callback_query.message.chat.id,
                                         message_id=callback_query.message.message_id,
                                         text=INTERNAL_ERROR_DEFAULT_TEXT, reply_markup=None)
+
         msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
                                      reply_markup=keyboards.get_change_data_keyboard())
         await state.update_data(last_keyboard_id=msg.message_id)
