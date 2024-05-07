@@ -15,7 +15,9 @@ from services.user_service import (UserServiceAgent, InvalidCityException,
                                    FuzzyCityException, CityAlreadyAddedException,
                                    InvalidTrackListException, TrackListAlreadyAddedException)
 from services.user_service.exceptions import InvalidCoordsException
-from .constants import SKIP_COMMAND_FILTER, TEXT_WITHOUT_COMMANDS_FILTER, INTERNAL_ERROR_DEFAULT_TEXT
+from .constants import (SKIP_COMMAND_FILTER, TEXT_WITHOUT_COMMANDS_FILTER,
+                        INTERNAL_ERROR_DEFAULT_TEXT, MAXIMUM_CITY_LEN, MAXIMUM_LINK_LEN)
+from .user_data_manager import set_last_keyboard_id, get_last_keyboard_id
 
 registration_router = Router()
 
@@ -30,19 +32,9 @@ async def __send_fuzz_variant_message(city: str, variant: str, message: Message,
     await message.answer(text=f'Города {city} не существует, может быть вы имели ввиду {variant}?',
                          reply_markup=ReplyKeyboardRemove())
     await state.update_data(variant=variant)
-    await message.answer('Выберите вариант действий', reply_markup=keyboards.get_fuzz_variants_markup())
+    msg = await message.answer('Выберите вариант действий', reply_markup=keyboards.get_fuzz_variants_markup())
+    await set_last_keyboard_id(msg.message_id, state)
     await state.set_state(RegistrationStates.ADD_CITY_CALLBACKS)
-
-
-async def __add_city(city: str, is_first_city: bool, state: FSMContext) -> bool:
-    if is_first_city:
-        await state.update_data(cities=[city])
-        return True
-    user_data = await state.get_data()
-    if city in user_data['cities']:
-        return False
-    user_data['cities'].append(city)
-    return True
 
 
 @registration_router.message(RegistrationStates.ADD_FIRST_CITY, F.content_type == ContentType.LOCATION)
@@ -78,12 +70,16 @@ async def add_first_city_from_location(message: Message, state: FSMContext, agen
 async def add_first_city_from_text(message: Message, state: FSMContext, agent: UserServiceAgent) -> None:
     city = message.text
     if city is None:
-        await message.answer(text='Неверный формат текста')
+        await message.answer(text='Неверный формат текста', reply_markup=keyboards.get_skip_add_cities_markup())
         return
     if message.from_user is None:
         return
     user_id = message.from_user.id
     if user_id is None:
+        return
+    if len(city) > MAXIMUM_CITY_LEN:
+        await message.answer(text='Слишком длинное название города',
+                             reply_markup=keyboards.get_skip_add_cities_markup())
         return
     try:
         await agent.add_user_city(user_id, city)
@@ -129,18 +125,25 @@ async def add_city_in_loop(message: Message, state: FSMContext, agent: UserServi
     if user_id is None:
         return
 
+    if len(city) > MAXIMUM_CITY_LEN:
+        await message.answer(text='Слишком длинное название города',
+                             reply_markup=keyboards.get_skip_add_cities_markup())
+        return
+
     try:
         await agent.add_user_city(user_id, city)
-        await message.answer(text=f'Город {city} добавлен успешно.')
+        await message.answer(text=f'Город {city} добавлен успешно.',
+                             reply_markup=keyboards.get_skip_add_cities_markup())
     except InvalidCityException:
-        await message.answer(text='Некорректно введен город или его не существует')
+        await message.answer(text='Некорректно введен город или его не существует',
+                             reply_markup=keyboards.get_skip_add_cities_markup())
     except FuzzyCityException as e:
         if e.variant is None:
             await message.answer(text=INTERNAL_ERROR_DEFAULT_TEXT)
             return
         await __send_fuzz_variant_message(city, e.variant, message, state)
     except CityAlreadyAddedException:
-        await message.answer('Город уже был добавлен')
+        await message.answer('Город уже был добавлен', reply_markup=keyboards.get_skip_add_cities_markup())
     except Exception as e:
         logging.log(level=logging.WARNING, msg=str(e))
         await message.answer(text=INTERNAL_ERROR_DEFAULT_TEXT)
@@ -164,6 +167,7 @@ async def apply_city_callback(callback_query: CallbackQuery, state: FSMContext, 
     await callback_query.answer()
     try:
         await agent.add_user_city(user_id, city)
+        await bot.delete_message(chat_id=callback_query.message.chat.id, message_id=get_last_keyboard_id(user_data))
         await bot.send_message(chat_id=callback_query.message.chat.id,
                                text='Город добавлен')
         if user_data['is_first_city']:
@@ -175,6 +179,7 @@ async def apply_city_callback(callback_query: CallbackQuery, state: FSMContext, 
         await state.set_state(RegistrationStates.ADD_CITIES_IN_LOOP)
 
     except CityAlreadyAddedException:
+        await bot.delete_message(chat_id=callback_query.message.chat.id, message_id=get_last_keyboard_id(user_data))
         await bot.send_message(chat_id=callback_query.message.chat.id,
                                text='Город уже был добавлен',
                                reply_markup=keyboards.get_skip_add_cities_markup())
@@ -191,10 +196,8 @@ async def deny_city_variant(callback_query: CallbackQuery, state: FSMContext) ->
     bot = callback_query.bot
     if bot is None or callback_query is None or callback_query.message is None:
         return
-    await bot.edit_message_reply_markup(chat_id=callback_query.message.chat.id,
-                                        message_id=callback_query.message.message_id,
-                                        reply_markup=None)
     user_data = await state.get_data()
+    await bot.delete_message(chat_id=callback_query.message.chat.id, message_id=get_last_keyboard_id(user_data))
     if user_data['is_first_city']:
         await bot.send_message(chat_id=callback_query.message.chat.id,
                                text='Вариант был отклонён',
@@ -213,7 +216,8 @@ async def deny_city_variant(callback_query: CallbackQuery, state: FSMContext) ->
 async def skip_add_links(message: Message, state: FSMContext) -> None:
     await state.update_data(is_first_link=None)
     await message.answer(text='Регистрация окончена', reply_markup=ReplyKeyboardRemove())
-    await message.answer(text='Выберите действие', reply_markup=keyboards.get_main_menu_keyboard())
+    msg = await message.answer(text='Выберите действие', reply_markup=keyboards.get_main_menu_keyboard())
+    await state.update_data(last_keyboard_id=msg.message_id)
     await state.set_state(MenuStates.MAIN_MENU)
 
 
@@ -228,6 +232,11 @@ async def add_link(message: Message, state: FSMContext, agent: UserServiceAgent)
     user_id = message.from_user.id
     if user_id is None:
         return
+
+    if len(link) > MAXIMUM_LINK_LEN:
+        await message.answer(text='Слишком длинная ссылка', reply_markup=keyboards.get_skip_add_links_markup())
+        return
+
     try:
         track_list = await agent.add_user_track_list(user_id, link)
         user_data = await state.get_data()

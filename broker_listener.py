@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import sys
+from asyncio import sleep
 from urllib.parse import urlparse, parse_qs
 
 from aiogram import Bot
@@ -19,7 +20,9 @@ bot: Bot = create_bot(settings)
 async def on_message(event: BrokerEvent) -> None:
     print(f'Received message for {event.user.telegram_id}')
 
-    for concert in event.concerts:
+    for pos, concert in enumerate(event.concerts):
+        if pos % 30 == 0 and pos != 0:
+            await sleep(1)
         txt = f'Скоро состоится <a href=\"{concert.afisha_url}\">концерт</a>!!!\n\n'
 
         if len(concert.artists) != 1 or concert.artists[0].name != concert.title:

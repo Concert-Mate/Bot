@@ -1,4 +1,5 @@
 import logging
+from asyncio import sleep
 from contextlib import suppress
 
 from aiogram import Router, F
@@ -10,9 +11,10 @@ from aiogram.types import CallbackQuery, Message
 from bot import keyboards
 from bot.keyboards import KeyboardCallbackData
 from bot.states import MenuStates
+from concert_message_builder import get_date_time, get_lon_lat_from_yandex_map_link
 from services.user_service import UserServiceAgent
 from .constants import INTERNAL_ERROR_DEFAULT_TEXT, CHOOSE_ACTION_TEXT
-from concert_message_builder import get_date_time, get_lon_lat_from_yandex_map_link
+from .user_data_manager import set_last_keyboard_id
 
 menu_router = Router()
 
@@ -92,7 +94,7 @@ async def show_cities(callback_query: CallbackQuery, state: FSMContext, agent: U
         else:
             txt = 'Ваши города:'
             for pos, city in enumerate(cities):
-                txt += f'\n{pos+1}.{city}'
+                txt += f'\n{pos + 1}.{city}'
             await callback_query.message.edit_text(text=txt, reply_markup=keyboards.get_back_keyboard())
     except Exception as e:
         logging.log(level=logging.WARNING, msg=str(e))
@@ -168,15 +170,16 @@ async def show_all_concerts(callback_query: CallbackQuery, state: FSMContext, ag
 
     await bot.delete_message(chat_id=callback_query.message.chat.id, message_id=callback_query.message.message_id)
 
-
-
     try:
+        await bot.send_chat_action(chat_id=callback_query.message.chat.id, action='typing')
         concerts = await agent.get_user_concerts(user_id)
 
         if len(concerts) == 0:
             await bot.send_message(chat_id=callback_query.message.chat.id, text='Концерты не обнаружены')
         else:
-            for concert in concerts:
+            for pos, concert in enumerate(concerts):
+                if pos % 30 == 0 and pos != 0:
+                    await sleep(1)
                 txt = ''
 
                 if len(concert.artists) != 1 or concert.artists[0].name != concert.title:
@@ -221,10 +224,10 @@ async def show_all_concerts(callback_query: CallbackQuery, state: FSMContext, ag
         logging.log(level=logging.WARNING, msg=str(e))
         await bot.send_message(chat_id=callback_query.message.chat.id, text=INTERNAL_ERROR_DEFAULT_TEXT)
 
+    msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
+                                 reply_markup=keyboards.get_tools_keyboard())
 
-
-    await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
-                           reply_markup=keyboards.get_tools_keyboard())
+    await set_last_keyboard_id(msg.message_id, state)
     await state.set_state(MenuStates.TOOLS)
 
 
