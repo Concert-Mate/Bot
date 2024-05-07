@@ -11,3 +11,5 @@ class MenuStates(StatesGroup):
     TOOLS = State()
     MANAGING_NOTIFICATIONS = State()
     CONCERTS_SHOW = State()
+    WAITING = State()
+

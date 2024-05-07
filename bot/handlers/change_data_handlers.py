@@ -32,17 +32,19 @@ async def __send_fuzz_variant_message(city: str, variant: str, message: Message,
 async def show_change_data_variants(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
+    await state.set_state(MenuStates.MAIN_MENU)
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_main_menu_keyboard())
-        await state.set_state(MenuStates.MAIN_MENU)
 
 
 @change_data_router.callback_query(MenuStates.CHANGE_DATA, F.data == KeyboardCallbackData.ADD_CITY)
 async def add_city_text_send(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
-    await callback_query.message.edit_text(text='Введите название города', reply_markup=keyboards.get_cancel_keyboard())
     await state.set_state(ChangeDataStates.ENTER_NEW_CITY)
+    with suppress(TelegramBadRequest):
+        await callback_query.message.edit_text(text='Введите название города',
+                                               reply_markup=keyboards.get_cancel_keyboard())
 
 
 @change_data_router.message(MenuStates.CHANGE_DATA)
@@ -51,7 +53,8 @@ async def resent(message: Message, state: FSMContext) -> None:
     if bot is None:
         return
     user_data = await state.get_data()
-    await bot.delete_message(chat_id=message.chat.id, message_id=get_last_keyboard_id(user_data))
+    with suppress(TelegramBadRequest):
+        await bot.delete_message(chat_id=message.chat.id, message_id=get_last_keyboard_id(user_data))
     msg = await bot.send_message(chat_id=message.chat.id, text=CHOOSE_ACTION_TEXT,
                                  reply_markup=keyboards.get_change_data_keyboard())
     await set_last_keyboard_id(msg.message_id, state)
@@ -61,8 +64,10 @@ async def resent(message: Message, state: FSMContext) -> None:
 async def cancel_add_city(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
-    await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_change_data_keyboard())
     await state.set_state(MenuStates.CHANGE_DATA)
+    with suppress(TelegramBadRequest):
+        await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT,
+                                               reply_markup=keyboards.get_change_data_keyboard())
 
 
 @change_data_router.message(ChangeDataStates.ENTER_NEW_CITY, TEXT_WITHOUT_COMMANDS_FILTER)
@@ -83,7 +88,9 @@ async def add_one_city(message: Message, state: FSMContext, agent: UserServiceAg
         return
 
     user_data = await state.get_data()
-    await bot.delete_message(chat_id=message.chat.id, message_id=get_last_keyboard_id(user_data))
+    await state.set_state(MenuStates.WAITING)
+    with suppress(TelegramBadRequest):
+        await bot.delete_message(chat_id=message.chat.id, message_id=get_last_keyboard_id(user_data))
 
     if len(city) > MAXIMUM_CITY_LEN:
         await message.answer(text='Слишком длинное название города')
@@ -127,20 +134,25 @@ async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext, a
     user_id = callback_query.from_user.id
     if user_id is None:
         return
+
+    await state.set_state(MenuStates.WAITING)
+
     user_data = await state.get_data()
     city = user_data['variant']
     try:
         await agent.add_user_city(user_id, city)
-        await bot.edit_message_text(chat_id=callback_query.message.chat.id, text='Город успешно добавлен',
-                                    message_id=callback_query.message.message_id, reply_markup=None)
+        with suppress(TelegramBadRequest):
+            await bot.edit_message_text(chat_id=callback_query.message.chat.id, text='Город успешно добавлен',
+                                        message_id=callback_query.message.message_id, reply_markup=None)
         msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
                                      reply_markup=keyboards.get_change_data_keyboard())
         await set_last_keyboard_id(msg.message_id, state)
         await state.set_state(MenuStates.CHANGE_DATA)
 
     except CityAlreadyAddedException:
-        await bot.edit_message_text(chat_id=callback_query.message.chat.id, text='Город уже был добавлен',
-                                    message_id=callback_query.message.message_id, reply_markup=None)
+        with suppress(TelegramBadRequest):
+            await bot.edit_message_text(chat_id=callback_query.message.chat.id, text='Город уже был добавлен',
+                                        message_id=callback_query.message.message_id, reply_markup=None)
         msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
                                      reply_markup=keyboards.get_change_data_keyboard())
         await set_last_keyboard_id(msg.message_id, state)
@@ -157,8 +169,10 @@ async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext, a
 async def deny_city_variant(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
-    await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_change_data_keyboard())
     await state.set_state(MenuStates.CHANGE_DATA)
+    with suppress(TelegramBadRequest):
+        await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT,
+                                               reply_markup=keyboards.get_change_data_keyboard())
 
 
 @change_data_router.callback_query(MenuStates.CHANGE_DATA, F.data == KeyboardCallbackData.REMOVE_CITY)
@@ -171,19 +185,23 @@ async def show_cities_as_inline_keyboard(callback_query: CallbackQuery, state: F
     user_id = callback_query.from_user.id
     if user_id is None:
         return
+    await state.set_state(MenuStates.WAITING)
     try:
         cities = await agent.get_user_cities(user_id)
         if len(cities) == 0:
-            await callback_query.message.edit_text(text='У вас не указан ни один город',
-                                                   reply_markup=keyboards.get_back_keyboard())
+            with suppress(TelegramBadRequest):
+                await callback_query.message.edit_text(text='У вас не указан ни один город',
+                                                       reply_markup=keyboards.get_back_keyboard())
         else:
-            await callback_query.message.edit_text(text='Выберите город, который нужно удалить',
-                                                   reply_markup=keyboards.get_inline_keyboard_with_back(cities))
+            with suppress(TelegramBadRequest):
+                await callback_query.message.edit_text(text='Выберите город, который нужно удалить',
+                                                       reply_markup=keyboards.get_inline_keyboard_with_back(cities))
         await state.set_state(ChangeDataStates.REMOVE_CITY)
     except Exception as e:
         logging.log(level=logging.WARNING, msg=str(e))
-        await callback_query.message.edit_text(text=INTERNAL_ERROR_DEFAULT_TEXT,
-                                               reply_markup=keyboards.get_back_keyboard())
+        with suppress(TelegramBadRequest):
+            await callback_query.message.edit_text(text=INTERNAL_ERROR_DEFAULT_TEXT,
+                                                   reply_markup=keyboards.get_back_keyboard())
         await state.set_state(ChangeDataStates.REMOVE_CITY)
 
 
@@ -191,8 +209,9 @@ async def show_cities_as_inline_keyboard(callback_query: CallbackQuery, state: F
 async def return_from_remove(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
-    await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT,
-                                           reply_markup=keyboards.get_change_data_keyboard())
+    with suppress(TelegramBadRequest):
+        await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT,
+                                               reply_markup=keyboards.get_change_data_keyboard())
     await state.set_state(MenuStates.CHANGE_DATA)
 
 
@@ -212,18 +231,20 @@ async def remove_city(callback_query: CallbackQuery, state: FSMContext, agent: U
 
     try:
         await agent.delete_user_city(user_id, city)
-        await bot.edit_message_text(chat_id=callback_query.message.chat.id,
-                                    message_id=callback_query.message.message_id,
-                                    text=f'Город {city} успешно удалён')
+        with suppress(TelegramBadRequest):
+            await bot.edit_message_text(chat_id=callback_query.message.chat.id,
+                                        message_id=callback_query.message.message_id,
+                                        text=f'Город {city} успешно удалён')
         msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
                                      reply_markup=keyboards.get_change_data_keyboard())
         await set_last_keyboard_id(msg.message_id, state)
         await state.set_state(MenuStates.CHANGE_DATA)
     except Exception as e:
         logging.log(level=logging.WARNING, msg=str(e))
-        await bot.edit_message_text(chat_id=callback_query.message.chat.id,
-                                    message_id=callback_query.message.message_id,
-                                    text=INTERNAL_ERROR_DEFAULT_TEXT, reply_markup=None)
+        with suppress(TelegramBadRequest):
+            await bot.edit_message_text(chat_id=callback_query.message.chat.id,
+                                        message_id=callback_query.message.message_id,
+                                        text=INTERNAL_ERROR_DEFAULT_TEXT, reply_markup=None)
         msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
                                      reply_markup=keyboards.get_change_data_keyboard())
         await set_last_keyboard_id(msg.message_id, state)
@@ -236,10 +257,12 @@ async def add_one_playlist_show_msg(callback_query: CallbackQuery, state: FSMCon
     if bot is None or callback_query is None or callback_query.message is None:
         return
 
-    await bot.edit_message_text(chat_id=callback_query.message.chat.id, message_id=callback_query.message.message_id,
-                                text='Введите ссылку на трек-лист',
-                                reply_markup=keyboards.get_cancel_keyboard())
     await state.set_state(ChangeDataStates.ENTER_NEW_PLAYLIST)
+    with suppress(TelegramBadRequest):
+        await bot.edit_message_text(chat_id=callback_query.message.chat.id,
+                                    message_id=callback_query.message.message_id,
+                                    text='Введите ссылку на трек-лист',
+                                    reply_markup=keyboards.get_cancel_keyboard())
 
 
 @change_data_router.message(ChangeDataStates.ENTER_NEW_PLAYLIST, TEXT_WITHOUT_COMMANDS_FILTER)
@@ -257,9 +280,9 @@ async def add_one_playlist(message: Message, state: FSMContext, agent: UserServi
     user_id = message.from_user.id
     if user_id is None:
         return
-
-    await bot.delete_message(chat_id=message.chat.id, message_id=get_last_keyboard_id(user_data))
-
+    with suppress(TelegramBadRequest):
+        await bot.delete_message(chat_id=message.chat.id, message_id=get_last_keyboard_id(user_data))
+    await state.set_state(MenuStates.WAITING)
     if len(link) > MAXIMUM_LINK_LEN:
         await message.answer(text='Слишком длинная ссылка')
         msg = await message.answer(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_change_data_keyboard())
@@ -287,8 +310,10 @@ async def add_one_playlist(message: Message, state: FSMContext, agent: UserServi
 async def return_from_add_playlist(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
-    await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_change_data_keyboard())
     await state.set_state(MenuStates.CHANGE_DATA)
+    with suppress(TelegramBadRequest):
+        await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT,
+                                               reply_markup=keyboards.get_change_data_keyboard())
 
 
 @change_data_router.callback_query(MenuStates.CHANGE_DATA, F.data == KeyboardCallbackData.REMOVE_LINK)
@@ -305,21 +330,23 @@ async def show_playlists_as_inline_keyboard(callback_query: CallbackQuery, state
     user_id = callback_query.from_user.id
     if user_id is None:
         return
-
+    await state.set_state(MenuStates.WAITING)
     try:
         playlists = await agent.get_user_track_lists(user_id)
         if len(playlists) == 0:
-            await callback_query.message.edit_text(text='У вас не указан ни один трек-лист',
-                                                   reply_markup=keyboards.get_back_keyboard())
+            with suppress(TelegramBadRequest):
+                await callback_query.message.edit_text(text='У вас не указан ни один трек-лист',
+                                                       reply_markup=keyboards.get_back_keyboard())
         else:
             text = 'Трек-листы'
             pos = 1
             for playlist in playlists:
                 text += f'\n{pos}: {playlist.title}'
                 pos += 1
-            await bot.edit_message_text(text=text, chat_id=callback_query.message.chat.id,
-                                        message_id=callback_query.message.message_id, reply_markup=None,
-                                        disable_web_page_preview=True)
+            with suppress(TelegramBadRequest):
+                await bot.edit_message_text(text=text, chat_id=callback_query.message.chat.id,
+                                            message_id=callback_query.message.message_id, reply_markup=None,
+                                            disable_web_page_preview=True)
             await bot.send_message(chat_id=callback_query.message.chat.id,
                                    text='Выберите трек-лист, который нужно удалить',
                                    reply_markup=keyboards.get_inline_keyboard_for_playlists(
@@ -327,8 +354,9 @@ async def show_playlists_as_inline_keyboard(callback_query: CallbackQuery, state
         await state.set_state(ChangeDataStates.REMOVE_PLAYLIST)
     except Exception as e:
         logging.log(level=logging.WARNING, msg=str(e))
-        await callback_query.message.edit_text(text=INTERNAL_ERROR_DEFAULT_TEXT,
-                                               reply_markup=keyboards.get_back_keyboard())
+        with suppress(TelegramBadRequest):
+            await callback_query.message.edit_text(text=INTERNAL_ERROR_DEFAULT_TEXT,
+                                                   reply_markup=keyboards.get_back_keyboard())
         await state.set_state(ChangeDataStates.REMOVE_PLAYLIST)
 
 
@@ -336,9 +364,10 @@ async def show_playlists_as_inline_keyboard(callback_query: CallbackQuery, state
 async def return_from_remove_playlist(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
-    await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT,
-                                           reply_markup=keyboards.get_change_data_keyboard())
     await state.set_state(MenuStates.CHANGE_DATA)
+    with suppress(TelegramBadRequest):
+        await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT,
+                                               reply_markup=keyboards.get_change_data_keyboard())
 
 
 @change_data_router.callback_query(ChangeDataStates.REMOVE_PLAYLIST, F.data != KeyboardCallbackData.BACK)
@@ -354,11 +383,13 @@ async def remove_playlist(callback_query: CallbackQuery, state: FSMContext, agen
     user_id = callback_query.from_user.id
     if user_id is None:
         return
+    await state.set_state(MenuStates.WAITING)
     try:
         await agent.delete_user_track_list(user_id, playlist)
-        await bot.edit_message_text(chat_id=callback_query.message.chat.id,
-                                    message_id=callback_query.message.message_id,
-                                    text=f'Трек-лист успешно удалён', reply_markup=None)
+        with suppress(TelegramBadRequest):
+            await bot.edit_message_text(chat_id=callback_query.message.chat.id,
+                                        message_id=callback_query.message.message_id,
+                                        text=f'Трек-лист успешно удалён', reply_markup=None)
 
         msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
                                      reply_markup=keyboards.get_change_data_keyboard())
@@ -366,9 +397,10 @@ async def remove_playlist(callback_query: CallbackQuery, state: FSMContext, agen
         await state.set_state(MenuStates.CHANGE_DATA)
     except Exception as e:
         logging.log(level=logging.WARNING, msg=str(e))
-        await bot.edit_message_text(chat_id=callback_query.message.chat.id,
-                                    message_id=callback_query.message.message_id,
-                                    text=INTERNAL_ERROR_DEFAULT_TEXT, reply_markup=None)
+        with suppress(TelegramBadRequest):
+            await bot.edit_message_text(chat_id=callback_query.message.chat.id,
+                                        message_id=callback_query.message.message_id,
+                                        text=INTERNAL_ERROR_DEFAULT_TEXT, reply_markup=None)
         msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
                                      reply_markup=keyboards.get_change_data_keyboard())
         await state.update_data(last_keyboard_id=msg.message_id)
