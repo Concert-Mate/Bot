@@ -22,3 +22,5 @@ class KeyboardCallbackData(StrEnum):
     ENABLE = 'enable'
     DISABLE = 'disable'
     NOTICE_MANAGEMENT = 'notice_management'
+    FORWARD = 'forward'
+    BACKWARD = 'backward'

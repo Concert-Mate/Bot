@@ -1,5 +1,4 @@
 import logging
-from asyncio import sleep
 from contextlib import suppress
 
 from aiogram import Router, F
@@ -11,7 +10,7 @@ from aiogram.types import CallbackQuery, Message
 from bot import keyboards
 from bot.keyboards import KeyboardCallbackData
 from bot.states import MenuStates
-from concert_message_builder import get_date_time, get_lon_lat_from_yandex_map_link
+from concert_message_builder import get_date_time
 from services.user_service import UserServiceAgent
 from .constants import INTERNAL_ERROR_DEFAULT_TEXT, CHOOSE_ACTION_TEXT
 from .user_data_manager import set_last_keyboard_id
@@ -198,20 +197,27 @@ async def show_all_concerts(callback_query: CallbackQuery, state: FSMContext, ag
         await bot.delete_message(chat_id=callback_query.message.chat.id, message_id=callback_query.message.message_id)
     await state.set_state(MenuStates.WAITING)
 
+    concerts_list = []
+
     try:
         await bot.send_chat_action(chat_id=callback_query.message.chat.id, action='typing')
         concerts = await agent.get_user_concerts(user_id)
 
         if len(concerts) == 0:
             await bot.send_message(chat_id=callback_query.message.chat.id, text='Концерты не обнаружены')
+            msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
+                                         reply_markup=keyboards.get_main_menu_keyboard())
+
+            await set_last_keyboard_id(msg.message_id, state)
+            await state.set_state(MenuStates.MAIN_MENU)
+            return
+
         else:
             for pos, concert in enumerate(concerts):
-                if pos % 30 == 0 and pos != 0:
-                    await sleep(1)
                 txt = ''
 
                 if len(concert.artists) != 1 or concert.artists[0].name != concert.title:
-                    txt += f'Название: <i>{concert.title}</i>\n\n'
+                    txt += f'Название: <i>{concert.title}</i>\n'
 
                 if len(concert.artists) == 1:
                     txt += 'Исполнитель:'
@@ -221,42 +227,91 @@ async def show_all_concerts(callback_query: CallbackQuery, state: FSMContext, ag
                 for artist in concert.artists:
                     txt += f' {artist.name},'
                 txt = txt[:-1]
-
-                txt += (f'\n\nМесто: город <b>{concert.city}</b>,'
-                        f' адрес <b>{concert.address}</b>\n')
+                if concert.map_url is None:
+                    txt += (f'\nМесто: город <b>{concert.city}</b>,'
+                            f' адрес <b>{concert.address}</b>\n')
+                else:
+                    txt += (f'\nМесто: город <b>{concert.city}</b>,'
+                            f' адрес <a href=\"{concert.map_url}\"><b>{concert.address}</b></a>\n')
                 if concert.place is not None:
-                    txt += f'в <i>{concert.place}</i>\n\n'
+                    txt += f'в <i>{concert.place}</i>\n'
                 else:
                     txt += '\n'
 
                 if concert.concert_datetime is not None:
-                    txt += f'Время: {get_date_time(concert.concert_datetime, True)}\n\n'
+                    txt += f'Время: {get_date_time(concert.concert_datetime, True)}\n'
                 if concert.min_price is not None:
-                    txt += f'Минимальная цена билета: <b>{concert.min_price.price}</b> <b>{concert.min_price.currency}</b>\n\n'
+                    txt += f'Минимальная цена билета: <b>{concert.min_price.price}</b> <b>{concert.min_price.currency}</b>\n'
                 txt += f'Купить билет можно <a href=\"{concert.afisha_url}\">здесь</a>'
+                concerts_list.append(txt)
 
-                await bot.send_message(chat_id=callback_query.message.chat.id,
-                                       text=txt,
-                                       parse_mode=ParseMode.HTML,
-                                       disable_web_page_preview=True)
-
-                if concert.map_url is not None:
-                    try:
-                        lon, lat = get_lon_lat_from_yandex_map_link(concert.map_url)
-                        await bot.send_location(chat_id=callback_query.message.chat.id,
-                                                longitude=lon, latitude=lat)
-                    except ValueError as e:
-                        logging.log(level=logging.WARNING, msg=str(e))
+        await state.update_data(concerts=concerts_list)
+        await state.update_data(current_page=0)
+        page_txt = ''
+        for i in range(0, 5):
+            if i == len(concerts_list):
+                break
+            page_txt += f'{i + 1}\n{concerts_list[i]}\n\n'
+        page_txt = page_txt[:-2]
+        await state.set_state(MenuStates.CONCERTS_SHOW)
+        msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=page_txt,
+                                     reply_markup=keyboards.get_show_concerts_keyboard(),
+                                     parse_mode=ParseMode.HTML,
+                                     disable_web_page_preview=True)
+        await set_last_keyboard_id(msg.message_id, state)
 
     except Exception as e:
         logging.log(level=logging.WARNING, msg=str(e))
         await bot.send_message(chat_id=callback_query.message.chat.id, text=INTERNAL_ERROR_DEFAULT_TEXT)
+        msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
+                                     reply_markup=keyboards.get_main_menu_keyboard())
 
-    msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
-                                 reply_markup=keyboards.get_main_menu_keyboard())
+        await set_last_keyboard_id(msg.message_id, state)
+        await state.set_state(MenuStates.MAIN_MENU)
 
-    await set_last_keyboard_id(msg.message_id, state)
+
+@menu_router.callback_query(MenuStates.CONCERTS_SHOW, F.data == KeyboardCallbackData.BACK)
+async def return_from_show_concerts(callback_query: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(MenuStates.MAIN_MENU)
+    user_data = await state.get_data()
+    user_data.pop('current_page')
+    user_data.pop('concerts')
+    await state.set_data(user_data)
+    with suppress(TelegramBadRequest):
+        await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_main_menu_keyboard())
+
+
+@menu_router.callback_query(MenuStates.CONCERTS_SHOW, F.data == KeyboardCallbackData.BACKWARD)
+@menu_router.callback_query(MenuStates.CONCERTS_SHOW, F.data == KeyboardCallbackData.FORWARD)
+async def show_concerts_page(callback_query: CallbackQuery, state: FSMContext) -> None:
+    user_data = await state.get_data()
+    current_page = user_data['current_page']
+    concerts: [str] = user_data['concerts']
+    if callback_query.data == KeyboardCallbackData.BACKWARD:
+        current_page -= 1
+    else:
+        current_page += 1
+
+    if current_page < 0:
+        current_page = len(concerts) // 5
+        if len(concerts) % 5 == 0 and current_page > 0:
+            current_page -= 1
+    elif current_page * 5 >= len(concerts):
+        current_page = 0
+
+    page_txt = ''
+    for i in range(current_page*5, current_page*5 + 5):
+        if i == len(concerts):
+            break
+        page_txt += f'{i + 1}\n{concerts[i]}\n\n'
+    page_txt = page_txt[:-2]
+    await state.update_data(current_page=current_page)
+    with suppress(TelegramBadRequest):
+        await callback_query.message.edit_text(text=page_txt,
+                                               reply_markup=keyboards.get_show_concerts_keyboard(),
+                                               parse_mode=ParseMode.HTML,
+                                               disable_web_page_preview=True
+                                               )
 
 
 

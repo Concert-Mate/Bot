@@ -95,7 +95,6 @@ async def add_one_city(message: Message, state: FSMContext, agent: UserServiceAg
     with suppress(TelegramBadRequest):
         await bot.delete_message(chat_id=message.chat.id, message_id=get_last_keyboard_id(user_data))
 
-
     if len(city) > MAXIMUM_CITY_LEN:
         await message.answer(text='Слишком длинное название города')
         msg = await message.answer(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_change_data_keyboard())
@@ -152,6 +151,10 @@ async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext, a
         msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
                                      reply_markup=keyboards.get_change_data_keyboard())
         await set_last_keyboard_id(msg.message_id, state)
+
+        user_data = await state.get_data()
+        user_data.pop('variant')
+        await state.set_data(user_data)
         await state.set_state(MenuStates.CHANGE_DATA)
 
     except CityAlreadyAddedException:
@@ -162,6 +165,9 @@ async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext, a
         msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
                                      reply_markup=keyboards.get_change_data_keyboard())
         await set_last_keyboard_id(msg.message_id, state)
+        user_data = await state.get_data()
+        user_data.pop('variant')
+        await state.set_data(user_data)
         await state.set_state(MenuStates.CHANGE_DATA)
     except Exception as e:
         logging.log(level=logging.WARNING, msg=str(e))
@@ -176,6 +182,9 @@ async def deny_city_variant(callback_query: CallbackQuery, state: FSMContext) ->
     if not isinstance(callback_query.message, Message):
         return
     await state.set_state(MenuStates.CHANGE_DATA)
+    user_data = await state.get_data()
+    user_data.pop('variant')
+    await state.set_data(user_data)
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT,
                                                reply_markup=keyboards.get_change_data_keyboard())
@@ -300,8 +309,6 @@ async def add_one_playlist(message: Message, state: FSMContext, agent: UserServi
         await state.set_state(MenuStates.CHANGE_DATA)
         return
 
-    await bot.delete_message(chat_id=message.chat.id, message_id=get_last_keyboard_id(user_data))
-
     if len(link) > MAXIMUM_LINK_LEN:
         await message.answer(text='Слишком длинная ссылка')
         msg = await message.answer(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_change_data_keyboard())
@@ -366,10 +373,11 @@ async def show_playlists_as_inline_keyboard(callback_query: CallbackQuery, state
                 await bot.edit_message_text(text=text, chat_id=callback_query.message.chat.id,
                                             message_id=callback_query.message.message_id, reply_markup=None,
                                             disable_web_page_preview=True)
-            await bot.send_message(chat_id=callback_query.message.chat.id,
-                                   text='Выберите трек-лист, который нужно удалить',
-                                   reply_markup=keyboards.get_inline_keyboard_for_playlists(
-                                       playlists))
+            msg = await bot.send_message(chat_id=callback_query.message.chat.id,
+                                         text='Выберите трек-лист, который нужно удалить',
+                                         reply_markup=keyboards.get_inline_keyboard_for_playlists(
+                                             playlists))
+            await set_last_keyboard_id(msg.message_id, state)
         await state.set_state(ChangeDataStates.REMOVE_PLAYLIST)
     except Exception as e:
         logging.log(level=logging.WARNING, msg=str(e))
