@@ -199,6 +199,7 @@ async def show_all_concerts(callback_query: CallbackQuery, state: FSMContext, ag
 
     concerts_list = []
 
+
     try:
         await bot.send_chat_action(chat_id=callback_query.message.chat.id, action='typing')
         concerts = await agent.get_user_concerts(user_id)
@@ -267,6 +268,7 @@ async def show_all_concerts(callback_query: CallbackQuery, state: FSMContext, ag
         msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
                                      reply_markup=keyboards.get_main_menu_keyboard())
 
+
         await set_last_keyboard_id(msg.message_id, state)
         await state.set_state(MenuStates.MAIN_MENU)
 
@@ -313,7 +315,6 @@ async def show_concerts_page(callback_query: CallbackQuery, state: FSMContext) -
                                                parse_mode=ParseMode.HTML,
                                                disable_web_page_preview=True
                                                )
-
 
 
 @menu_router.callback_query(MenuStates.TOOLS, F.data == KeyboardCallbackData.BACK)

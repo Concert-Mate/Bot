@@ -111,10 +111,12 @@ async def add_first_city_from_text(message: Message, state: FSMContext, agent: U
 @registration_router.message(RegistrationStates.ADD_CITIES_IN_LOOP, SKIP_COMMAND_FILTER)
 async def skip_add_cities(message: Message, state: FSMContext) -> None:
     await state.set_state(RegistrationStates.ADD_LINK)
+
     user_data = await state.get_data()
     user_data.pop('is_first_city')
     user_data.update(is_first_link=True)
     await state.set_data(user_data)
+
     await message.answer(text='Введите ссылку, откуда мы будем выбирать ваших любимых исполнителей',
                          reply_markup=ReplyKeyboardRemove())
 
@@ -187,12 +189,15 @@ async def apply_city_callback(callback_query: CallbackQuery, state: FSMContext, 
             await bot.send_message(chat_id=callback_query.message.chat.id,
                                    text=__after_first_city_msg,
                                    reply_markup=keyboards.get_skip_add_cities_markup())
+
             user_data.update(is_first_city=False)
+
         else:
             await bot.send_message(chat_id=callback_query.message.chat.id,
                                    text='Город добавлен\n'
                                         'Напоминание: можно ввести /skip',
                                    reply_markup=keyboards.get_skip_add_cities_markup())
+
         user_data.pop('variant')
         await state.set_data(user_data)
         await state.set_state(RegistrationStates.ADD_CITIES_IN_LOOP)
@@ -242,9 +247,11 @@ async def deny_city_variant(callback_query: CallbackQuery, state: FSMContext) ->
 @registration_router.message(RegistrationStates.ADD_LINK, SKIP_COMMAND_FILTER)
 async def skip_add_links(message: Message, state: FSMContext) -> None:
     await state.set_state(MenuStates.MAIN_MENU)
+
     user_data = await state.get_data()
     user_data.pop('is_first_link')
     await state.set_data(user_data)
+
     await message.answer(text='Регистрация окончена', reply_markup=ReplyKeyboardRemove())
     msg = await message.answer(text='Выберите действие', reply_markup=keyboards.get_main_menu_keyboard())
     await state.update_data(last_keyboard_id=msg.message_id)

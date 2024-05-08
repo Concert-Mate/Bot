@@ -182,9 +182,11 @@ async def deny_city_variant(callback_query: CallbackQuery, state: FSMContext) ->
     if not isinstance(callback_query.message, Message):
         return
     await state.set_state(MenuStates.CHANGE_DATA)
+
     user_data = await state.get_data()
     user_data.pop('variant')
     await state.set_data(user_data)
+
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT,
                                                reply_markup=keyboards.get_change_data_keyboard())
