@@ -241,7 +241,8 @@ async def show_all_concerts(callback_query: CallbackQuery, state: FSMContext, ag
                 if concert.concert_datetime is not None:
                     txt += f'Время: {get_date_time(concert.concert_datetime, True)}\n'
                 if concert.min_price is not None:
-                    txt += f'Минимальная цена билета: <b>{concert.min_price.price}</b> <b>{concert.min_price.currency}</b>\n'
+                    txt += (f'Минимальная цена билета: <b>{concert.min_price.price}</b>'
+                            f' <b>{concert.min_price.currency}</b>\n')
                 txt += f'Купить билет можно <a href=\"{concert.afisha_url}\">здесь</a>'
                 concerts_list.append(txt)
 
