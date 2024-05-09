@@ -24,7 +24,7 @@ def get_main_menu_keyboard() -> InlineKeyboardMarkup:
     )
     builder.row(
         types.InlineKeyboardButton(
-            text='F.A.Q', callback_data=KeyboardCallbackData.FAQ),
+            text='Помощь', callback_data=KeyboardCallbackData.HELP),
     )
 
     return create_resizable_inline_keyboard(builder)
@@ -92,9 +92,13 @@ def get_inline_keyboard_for_playlists(rows: list[Playlist]) -> InlineKeyboardMar
     return create_resizable_inline_keyboard(builder)
 
 
-def get_faq_keyboard() -> InlineKeyboardMarkup:
+def get_help_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
+    builder.row(
+        types.InlineKeyboardButton(
+            text='Часто задаваемые вопросы', callback_data=KeyboardCallbackData.FAQ),
+    )
     builder.row(
         types.InlineKeyboardButton(
             text='Что умеет этот бот', callback_data=KeyboardCallbackData.MAIN_INFO),

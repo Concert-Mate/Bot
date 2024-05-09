@@ -8,7 +8,7 @@ __all__ = [
     'get_change_data_keyboard',
     'get_cancel_keyboard',
     'get_inline_keyboard_with_back',
-    'get_faq_keyboard',
+    'get_help_keyboard',
     'get_back_keyboard',
     'get_user_info_keyboard',
     'get_tools_keyboard',

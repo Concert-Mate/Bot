@@ -12,7 +12,7 @@ from bot.keyboards import KeyboardCallbackData
 from bot.states import MenuStates
 from concert_message_builder import get_date_time
 from services.user_service import UserServiceAgent
-from .constants import INTERNAL_ERROR_DEFAULT_TEXT, CHOOSE_ACTION_TEXT
+from .constants import INTERNAL_ERROR_DEFAULT_TEXT, CHOOSE_ACTION_TEXT, ABOUT_TEXT, FAQ_TEXT, DEV_COMM_TEXT
 from .user_data_manager import set_last_keyboard_id
 
 menu_router = Router()
@@ -28,36 +28,47 @@ async def show_change_data_variants(callback_query: CallbackQuery, state: FSMCon
                                                reply_markup=keyboards.get_change_data_keyboard())
 
 
-@menu_router.callback_query(MenuStates.MAIN_MENU, F.data == KeyboardCallbackData.FAQ)
-async def show_faq_variants(callback_query: CallbackQuery, state: FSMContext) -> None:
+@menu_router.callback_query(MenuStates.MAIN_MENU, F.data == KeyboardCallbackData.HELP)
+async def show_help_variants(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
-    await state.set_state(MenuStates.FAQ)
+    await state.set_state(MenuStates.HELP)
     with suppress(TelegramBadRequest):
-        await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_faq_keyboard())
+        await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_help_keyboard())
 
 
-@menu_router.callback_query(MenuStates.FAQ, F.data == KeyboardCallbackData.MAIN_INFO)
+@menu_router.callback_query(MenuStates.HELP, F.data == KeyboardCallbackData.MAIN_INFO)
 async def show_main_info(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
-    await state.set_state(MenuStates.FAQ_DEAD_END)
+    await state.set_state(MenuStates.HELP_DEAD_END)
     with suppress(TelegramBadRequest):
-        await callback_query.message.edit_text(text='Информация',
+        await callback_query.message.edit_text(text=ABOUT_TEXT,
                                                reply_markup=keyboards.get_back_keyboard())
 
 
-@menu_router.callback_query(MenuStates.FAQ, F.data == KeyboardCallbackData.DEVELOPMENT_COMMUNICATION)
+@menu_router.callback_query(MenuStates.HELP, F.data == KeyboardCallbackData.DEVELOPMENT_COMMUNICATION)
 async def show_dev_info(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
-    await state.set_state(MenuStates.FAQ_DEAD_END)
+    await state.set_state(MenuStates.HELP_DEAD_END)
     with suppress(TelegramBadRequest):
-        await callback_query.message.edit_text(text='Создатель бота: @urberton',
+        await callback_query.message.edit_text(text=DEV_COMM_TEXT,
+                                               reply_markup=keyboards.get_back_keyboard(),
+                                               parse_mode=ParseMode.HTML)
+
+
+@menu_router.callback_query(MenuStates.HELP, F.data == KeyboardCallbackData.FAQ)
+async def show_faq_info(callback_query: CallbackQuery, state: FSMContext) -> None:
+    if not isinstance(callback_query.message, Message):
+        return
+    await state.set_state(MenuStates.HELP_DEAD_END)
+    with suppress(TelegramBadRequest):
+        await callback_query.message.edit_text(text=FAQ_TEXT,
                                                reply_markup=keyboards.get_back_keyboard())
 
 
-@menu_router.callback_query(MenuStates.FAQ, F.data == KeyboardCallbackData.BACK)
+@menu_router.callback_query(MenuStates.HELP, F.data == KeyboardCallbackData.BACK)
 async def go_to_menu(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
@@ -66,13 +77,13 @@ async def go_to_menu(callback_query: CallbackQuery, state: FSMContext) -> None:
         await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_main_menu_keyboard())
 
 
-@menu_router.callback_query(MenuStates.FAQ_DEAD_END, F.data == KeyboardCallbackData.BACK)
+@menu_router.callback_query(MenuStates.HELP_DEAD_END, F.data == KeyboardCallbackData.BACK)
 async def go_to_faq(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
-    await state.set_state(MenuStates.FAQ)
+    await state.set_state(MenuStates.HELP)
     with suppress(TelegramBadRequest):
-        await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_faq_keyboard())
+        await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_help_keyboard())
 
 
 @menu_router.callback_query(MenuStates.MAIN_MENU, F.data == KeyboardCallbackData.USER_INFO)
@@ -254,7 +265,10 @@ async def show_all_concerts(callback_query: CallbackQuery, state: FSMContext, ag
             if i == len(concerts_list):
                 break
             page_txt += f'{i + 1}\n{concerts_list[i]}\n\n'
-        page_txt = page_txt[:-2]
+        all_pages = len(concerts_list) // 5
+        if len(concerts_list) % 5 != 0:
+            all_pages += 1
+        page_txt += f'Страница 1 из {all_pages}'
         await state.set_state(MenuStates.CONCERTS_SHOW)
         msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=page_txt,
                                      reply_markup=keyboards.get_show_concerts_keyboard(),
@@ -307,7 +321,12 @@ async def show_concerts_page(callback_query: CallbackQuery, state: FSMContext) -
         if i == len(concerts):
             break
         page_txt += f'{i + 1}\n{concerts[i]}\n\n'
-    page_txt = page_txt[:-2]
+
+    all_pages = len(concerts) // 5
+    if len(concerts) % 5 != 0:
+        all_pages += 1
+    page_txt += f'Страница {current_page + 1} из {all_pages}'
+
     await state.update_data(current_page=current_page)
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=page_txt,

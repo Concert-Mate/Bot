@@ -35,7 +35,6 @@ class Singleton:
     @staticmethod
     def get_connection():
         if not Singleton._instance:
-            logging.log(level=logging.INFO, msg=f'broker\'s listener trying start with: host={settings.redis_host}, port={settings.redis_port}, password={settings.redis_password}')
             Singleton._instance = Redis(
                 host=settings.redis_host,
                 port=settings.redis_port,
@@ -48,17 +47,16 @@ class Singleton:
 
 
 async def on_message(event: BrokerEvent) -> None:
-    print(f'Received message for {event.user.telegram_id}')
     connection = Singleton.get_connection()
     removed_kb = False
     data = await connection.get(name=f'fsm:{event.user.telegram_id}:{event.user.telegram_id}:data')
-    try:
-        keyboard_id = TelegramUserData.model_validate_json(data).last_keyboard_id
-        await bot.delete_message(chat_id=event.user.telegram_id, message_id=keyboard_id)
-        removed_kb = True
-
-    except Exception as ex:
-        logging.log(level=logging.WARNING, msg=str(ex))
+    if data is not None:
+        try:
+            keyboard_id = TelegramUserData.model_validate_json(data).last_keyboard_id
+            await bot.delete_message(chat_id=event.user.telegram_id, message_id=keyboard_id)
+            removed_kb = True
+        except Exception as ex:
+            logging.log(level=logging.WARNING, msg=str(ex))
 
     for pos, concert in enumerate(event.concerts):
         txt = f'Скоро состоится <a href=\"{concert.afisha_url}\">концерт</a>!!!\n\n'
