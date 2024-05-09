@@ -19,6 +19,7 @@ async def main() -> None:
     )
 
     # TODO: сделать логирование в обработке ответов от бэкенда
+
     storage = RedisStorage.from_url(f'redis://:{settings.redis_password}@{settings.redis_host}:{settings.redis_port}')
 
     try:

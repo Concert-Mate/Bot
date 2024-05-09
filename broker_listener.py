@@ -35,6 +35,7 @@ class Singleton:
     @staticmethod
     def get_connection():
         if not Singleton._instance:
+            logging.log(level=logging.INFO, msg=f'broker\'s listener trying start with: host={settings.redis_host}, port={settings.redis_port}, password={settings.redis_password}')
             Singleton._instance = Redis(
                 host=settings.redis_host,
                 port=settings.redis_port,
