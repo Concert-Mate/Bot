@@ -6,21 +6,21 @@ from asyncio import sleep
 
 from aiogram import Bot
 from aiogram.enums import ParseMode
+from aiogram.exceptions import TelegramBadRequest
 from redis import BusyLoadingError
 from redis.asyncio import Redis
 from redis.asyncio.retry import Retry
 from redis.backoff import ExponentialBackoff
 
+from bot.handlers.constants import CHOOSE_ACTION_TEXT
+from bot.keyboards.menu_keyboards import get_main_menu_keyboard
+from bot.states.menu_states import MenuStates
 from concert_message_builder import get_date_time, get_lon_lat_from_yandex_map_link
 from model import TelegramUserData
-from services.broker import Broker, BrokerEvent, BrokerException
+from services.broker import Broker, BrokerEvent
 from services.broker.impl.rabbitmq_broker import RabbitMQBroker
 from settings import settings
 from utils import create_bot
-
-from bot.states.menu_states import MenuStates
-from bot.keyboards.menu_keyboards import get_main_menu_keyboard
-from bot.handlers.constants import CHOOSE_ACTION_TEXT
 
 bot: Bot = create_bot(settings)
 
@@ -56,6 +56,7 @@ async def on_message(event: BrokerEvent) -> None:
         keyboard_id = TelegramUserData.model_validate_json(data).last_keyboard_id
         await bot.delete_message(chat_id=event.user.telegram_id, message_id=keyboard_id)
         removed_kb = True
+
     except Exception as ex:
         logging.log(level=logging.WARNING, msg=str(ex))
 
@@ -84,11 +85,15 @@ async def on_message(event: BrokerEvent) -> None:
             txt += f'Время: {get_date_time(concert.concert_datetime, True)}\n\n'
         if concert.min_price is not None:
             txt += f'Минимальная цена билета: <b>{concert.min_price.price}</b> <b>{concert.min_price.currency}</b>'
+        try:
+            await bot.send_message(chat_id=event.user.telegram_id,
+                                   text=txt,
+                                   parse_mode=ParseMode.HTML,
+                                   disable_web_page_preview=True)
+        except TelegramBadRequest as e:
+            logging.warning(e)
+            return
 
-        await bot.send_message(chat_id=event.user.telegram_id,
-                               text=txt,
-                               parse_mode=ParseMode.HTML,
-                               disable_web_page_preview=True)
         if concert.map_url is not None:
             try:
                 lon, lat = get_lon_lat_from_yandex_map_link(concert.map_url)
@@ -97,6 +102,7 @@ async def on_message(event: BrokerEvent) -> None:
             except ValueError as e:
                 logging.log(level=logging.WARNING, msg=str(e))
         await sleep(1)
+
     if removed_kb:
         await connection.set(name=f'fsm:{event.user.telegram_id}:{event.user.telegram_id}:state',
                              value=str(MenuStates.MAIN_MENU.state))
@@ -123,15 +129,18 @@ async def main() -> None:
             port=settings.rabbitmq_port,
         )
 
+        await Singleton.get_connection().ping()
+        logging.info('Connection with redis on broker is OK')
+
         logging.info('Starting listening broker ...')
         await rabbitmq_broker.start_listening(
             on_message_callback=on_message,
             on_error_callback=on_error,
         )
-    except BrokerException as e:
+    except Exception as e:
         logging.warning(e)
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format='%(asctime)s - %(levelname)s - %(message)s')
     asyncio.run(main())
