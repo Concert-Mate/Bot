@@ -19,7 +19,8 @@ async def main() -> None:
     )
 
     # TODO: сделать логирование в обработке ответов от бэкенда
-
+    logging.log(level=logging.INFO, msg=('redis starting on: ' + f'redis://:{settings.redis_password}'
+                                                                 f'@{settings.redis_host}:{settings.redis_port}'))
     storage = RedisStorage.from_url(f'redis://:{settings.redis_password}@{settings.redis_host}:{settings.redis_port}')
 
     bot: Bot = create_bot(settings)
