@@ -14,7 +14,7 @@ class KeyboardCallbackData(StrEnum):
     MAIN_INFO = 'main_info'
     CHANGE_DATA = 'change_data'
     TOOLS = 'tools'
-    FAQ = 'faq'
+    HELP = 'help'
     REMOVE_CITY = 'remove_city'
     REMOVE_LINK = 'remove_link'
     ADD_LINK = 'add_link'
@@ -24,3 +24,4 @@ class KeyboardCallbackData(StrEnum):
     NOTICE_MANAGEMENT = 'notice_management'
     FORWARD = 'forward'
     BACKWARD = 'backward'
+    FAQ = 'faq'
