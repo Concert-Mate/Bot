@@ -19,8 +19,14 @@ async def main() -> None:
     )
 
     # TODO: сделать логирование в обработке ответов от бэкенда
-
     storage = RedisStorage.from_url(f'redis://:{settings.redis_password}@{settings.redis_host}:{settings.redis_port}')
+
+    try:
+        await storage.redis.ping()
+        logging.info('Connection with redis on bot is OK')
+    except Exception as e:
+        logging.error(msg=f'No connection with redis on bot. {str(e)}')
+        return
 
     bot: Bot = create_bot(settings)
     dp = Dispatcher(storage=storage)
@@ -34,5 +40,5 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format='%(asctime)s - %(levelname)s - %(message)s')
     asyncio.run(main())
