@@ -1,6 +1,10 @@
+version: '3'
 services:
   bot:
     build: .
+    depends_on:
+      redis:
+        condition: service_healthy
   redis:
     image: redis
     command:
@@ -17,3 +21,8 @@ services:
       - "${REDIS_PORT}:6379"  
     env_file:
       - .env
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 1ms
+      timeout: 30s
+      retries: 10000
