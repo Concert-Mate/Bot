@@ -18,7 +18,7 @@ services:
     volumes:
       - ./redis_data:/data
     ports:
-      - "${REDIS_PORT}:6379"  
+      - "6381:${REDIS_PORT}"  
     env_file:
       - .env
     healthcheck:
