@@ -175,3 +175,18 @@ def get_notify_management_keyboard(is_enabled: bool) -> InlineKeyboardMarkup:
     )
 
     return create_resizable_inline_keyboard(builder)
+
+
+def get_show_concerts_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        types.InlineKeyboardButton(
+            text='⬅️', callback_data=KeyboardCallbackData.BACKWARD),
+        types.InlineKeyboardButton(
+            text='➡️', callback_data=KeyboardCallbackData.FORWARD),
+    )
+    builder.row(
+        types.InlineKeyboardButton(
+            text='Назад', callback_data=KeyboardCallbackData.BACK),
+    )
+    return create_resizable_inline_keyboard(builder)

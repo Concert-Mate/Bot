@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     rabbitmq_port: int = 5672
     user_service_host: str = 'localhost'
     user_service_port: int = 8080
+    redis_host: str = 'localhost'
+    redis_port: int = 6379
+    redis_password: str = 'redis-password'
 
     model_config = SettingsConfigDict(env_file=".env")
 

@@ -1,28 +1,64 @@
 import asyncio
+import json
 import logging
 import sys
 from asyncio import sleep
-from urllib.parse import urlparse, parse_qs
 
 from aiogram import Bot
 from aiogram.enums import ParseMode
+from redis import BusyLoadingError
+from redis.asyncio import Redis
+from redis.asyncio.retry import Retry
+from redis.backoff import ExponentialBackoff
 
+from concert_message_builder import get_date_time, get_lon_lat_from_yandex_map_link
+from model import TelegramUserData
 from services.broker import Broker, BrokerEvent, BrokerException
 from services.broker.impl.rabbitmq_broker import RabbitMQBroker
 from settings import settings
 from utils import create_bot
 
-from concert_message_builder import get_date_time, get_lon_lat_from_yandex_map_link
+from bot.states.menu_states import MenuStates
+from bot.keyboards.menu_keyboards import get_main_menu_keyboard
+from bot.handlers.constants import CHOOSE_ACTION_TEXT
 
 bot: Bot = create_bot(settings)
+
+REQUESTS_COUNT = 100000
+RETRY = 3
+TIMEOUT = 2
+
+
+class Singleton:
+    _instance = None
+
+    @staticmethod
+    def get_connection():
+        if not Singleton._instance:
+            Singleton._instance = Redis(
+                host=settings.redis_host,
+                port=settings.redis_port,
+                password=settings.redis_password,
+                socket_timeout=TIMEOUT,
+                retry=Retry(ExponentialBackoff(), RETRY),
+                retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError]
+            )
+        return Singleton._instance
 
 
 async def on_message(event: BrokerEvent) -> None:
     print(f'Received message for {event.user.telegram_id}')
+    connection = Singleton.get_connection()
+    removed_kb = False
+    data = await connection.get(name=f'fsm:{event.user.telegram_id}:{event.user.telegram_id}:data')
+    try:
+        keyboard_id = TelegramUserData.model_validate_json(data).last_keyboard_id
+        await bot.delete_message(chat_id=event.user.telegram_id, message_id=keyboard_id)
+        removed_kb = True
+    except Exception as ex:
+        logging.log(level=logging.WARNING, msg=str(ex))
 
     for pos, concert in enumerate(event.concerts):
-        if pos % 30 == 0 and pos != 0:
-            await sleep(1)
         txt = f'Скоро состоится <a href=\"{concert.afisha_url}\">концерт</a>!!!\n\n'
 
         if len(concert.artists) != 1 or concert.artists[0].name != concert.title:
@@ -59,7 +95,16 @@ async def on_message(event: BrokerEvent) -> None:
                                         longitude=lon, latitude=lat)
             except ValueError as e:
                 logging.log(level=logging.WARNING, msg=str(e))
-
+        await sleep(1)
+    if removed_kb:
+        await connection.set(name=f'fsm:{event.user.telegram_id}:{event.user.telegram_id}:state',
+                             value=str(MenuStates.MAIN_MENU.state))
+        msg = await bot.send_message(chat_id=event.user.telegram_id, text=CHOOSE_ACTION_TEXT,
+                                     reply_markup=get_main_menu_keyboard())
+        json_data = json.loads(data)
+        json_data['last_keyboard_id'] = msg.message_id
+        await connection.set(f'fsm:{event.user.telegram_id}:{event.user.telegram_id}:data',
+                             value=json.dumps(json_data))
 
 
 async def on_error(exception: Exception) -> None:

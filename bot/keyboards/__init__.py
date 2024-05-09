@@ -14,6 +14,7 @@ __all__ = [
     'get_tools_keyboard',
     'get_notify_management_keyboard',
     'get_inline_keyboard_for_playlists',
+    'get_show_concerts_keyboard',
     'KeyboardCallbackData'
 ]
 

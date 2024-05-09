@@ -1,0 +1,18 @@
+
+services:
+  redis:
+    image: redis
+    command:
+      - 'redis-server'
+      - '--loglevel ${REDIS_LOGLEVEL:-warning}'
+      - '--databases 2'
+      - '--save 120 1'
+      - '--maxmemory ${REDIS_MAXMEM:-50mb}'
+      - '--maxmemory-policy ${REDIS_POLICY:-noeviction}'
+      - '--requirepass ${REDIS_PASSWORD}'
+    volumes:
+      - ./redis_data:/data
+    ports:
+      - "6381:6379"
+    env_file:
+      - .env

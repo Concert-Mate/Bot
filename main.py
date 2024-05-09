@@ -3,6 +3,7 @@ import logging
 import sys
 
 from aiogram import Bot, Dispatcher
+from aiogram.fsm.storage.redis import RedisStorage
 
 from bot import handlers
 from services.user_service import UserServiceAgent
@@ -18,8 +19,11 @@ async def main() -> None:
     )
 
     # TODO: сделать логирование в обработке ответов от бэкенда
+
+    storage = RedisStorage.from_url(f'redis://:{settings.redis_password}@{settings.redis_host}:{settings.redis_port}')
+
     bot: Bot = create_bot(settings)
-    dp = Dispatcher()
+    dp = Dispatcher(storage=storage)
     dp['agent'] = agent
     dp.include_router(handlers.common_router)
     dp.include_router(handlers.registration_router)
