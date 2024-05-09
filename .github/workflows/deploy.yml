@@ -35,6 +35,7 @@ jobs:
             USER_SERVICE_HOST=${{ secrets.HOST }}
             USER_SERVICE_PORT=${{ secrets.USER_SERVICE_PORT }}
 
+            REDIS_HOST=${{ secrets.REDIS_BOT_HOST }}
             REDIS_PORT=${{ secrets.REDIS_BOT_PORT }}
             REDIS_PASSWORD=${{ secrets.REDIS_BOT_PASSWORD }}
             EOF
