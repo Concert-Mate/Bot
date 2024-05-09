@@ -10,10 +10,10 @@ services:
       - '--save 120 1'
       - '--maxmemory ${REDIS_MAXMEM:-50mb}'
       - '--maxmemory-policy ${REDIS_POLICY:-noeviction}'
-      - '--requirepass ${REDIS_BOT_PASSWORD}'
+      - '--requirepass ${REDIS_PASSWORD}'
     volumes:
       - ./redis_data:/data
     ports:
-      - "${REDIS_BOT_PORT}:6379"  
+      - "${REDIS_PORT}:6379"  
     env_file:
       - .env
