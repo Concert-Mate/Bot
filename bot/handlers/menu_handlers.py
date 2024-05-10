@@ -1,5 +1,6 @@
 import logging
 from contextlib import suppress
+from typing import List
 
 from aiogram import Router, F
 from aiogram.enums import ParseMode
@@ -17,11 +18,31 @@ from .user_data_manager import set_last_keyboard_id
 
 menu_router = Router()
 
+bot_logger = logging.getLogger('bot')
+
+
+async def __check_user_and_logging(callback_query: CallbackQuery, func_name: str, state: FSMContext) -> bool:
+    if not isinstance(callback_query.message, Message):
+        return False
+    if callback_query.from_user is None:
+        return False
+    user_id = callback_query.from_user.id
+    if user_id is None:
+        return False
+
+    bot_logger.info(
+        f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
+        f' on state:{await state.get_state()} for {func_name}')
+    return True
+
 
 @menu_router.callback_query(MenuStates.MAIN_MENU, F.data == KeyboardCallbackData.CHANGE_DATA)
 async def show_change_data_variants(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
+    if not await __check_user_and_logging(callback_query, 'show_change_data_variants', state):
+        return
+
     await state.set_state(MenuStates.CHANGE_DATA)
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT,
@@ -32,6 +53,9 @@ async def show_change_data_variants(callback_query: CallbackQuery, state: FSMCon
 async def show_help_variants(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
+
+    if not await __check_user_and_logging(callback_query, 'show_help_variants', state):
+        return
     await state.set_state(MenuStates.HELP)
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_help_keyboard())
@@ -41,6 +65,10 @@ async def show_help_variants(callback_query: CallbackQuery, state: FSMContext) -
 async def show_main_info(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
+
+    if not await __check_user_and_logging(callback_query, 'show_main_info', state):
+        return
+
     await state.set_state(MenuStates.HELP_DEAD_END)
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=ABOUT_TEXT,
@@ -51,6 +79,10 @@ async def show_main_info(callback_query: CallbackQuery, state: FSMContext) -> No
 async def show_dev_info(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
+
+    if not await __check_user_and_logging(callback_query, 'show_dev_info', state):
+        return
+
     await state.set_state(MenuStates.HELP_DEAD_END)
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=DEV_COMM_TEXT,
@@ -62,6 +94,10 @@ async def show_dev_info(callback_query: CallbackQuery, state: FSMContext) -> Non
 async def show_faq_info(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
+
+    if not await __check_user_and_logging(callback_query, 'show_faq_info', state):
+        return
+
     await state.set_state(MenuStates.HELP_DEAD_END)
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=FAQ_TEXT,
@@ -72,6 +108,8 @@ async def show_faq_info(callback_query: CallbackQuery, state: FSMContext) -> Non
 async def go_to_menu(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
+    if not await __check_user_and_logging(callback_query, 'go_to_menu', state):
+        return
     await state.set_state(MenuStates.MAIN_MENU)
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_main_menu_keyboard())
@@ -81,6 +119,10 @@ async def go_to_menu(callback_query: CallbackQuery, state: FSMContext) -> None:
 async def go_to_faq(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
+
+    if not await __check_user_and_logging(callback_query, 'go_to_faq', state):
+        return
+
     await state.set_state(MenuStates.HELP)
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_help_keyboard())
@@ -89,6 +131,8 @@ async def go_to_faq(callback_query: CallbackQuery, state: FSMContext) -> None:
 @menu_router.callback_query(MenuStates.MAIN_MENU, F.data == KeyboardCallbackData.USER_INFO)
 async def show_user_info_variants(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
+        return
+    if not await __check_user_and_logging(callback_query, 'show_user_info_variants', state):
         return
     await state.set_state(MenuStates.USER_INFO)
     with suppress(TelegramBadRequest):
@@ -105,10 +149,16 @@ async def show_cities(callback_query: CallbackQuery, state: FSMContext, agent: U
     if user_id is None:
         return
 
+    bot_logger.info(
+        f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
+        f' on state:{await state.get_state()} for show_cities')
+
     await state.set_state(MenuStates.WAITING)
     await callback_query.answer()
     try:
         cities = await agent.get_user_cities(user_id)
+        bot_logger.info(f'Got cities:{cities} for {callback_query.message.message_id} of'
+                        f' {user_id}-{callback_query.from_user.username}')
         if len(cities) == 0:
             with suppress(TelegramBadRequest):
                 await callback_query.message.edit_text(text='У вас не указан ни один город',
@@ -122,7 +172,8 @@ async def show_cities(callback_query: CallbackQuery, state: FSMContext, agent: U
                 await callback_query.message.edit_text(text=txt, reply_markup=keyboards.get_back_keyboard())
 
     except Exception as e:
-        logging.log(level=logging.WARNING, msg=str(e))
+        bot_logger.warning(f'On {callback_query.message.message_id}'
+                           f' for {user_id}-{callback_query.from_user.username}: {str(e)}')
         with suppress(TelegramBadRequest):
             await callback_query.message.edit_text(text=INTERNAL_ERROR_DEFAULT_TEXT,
                                                    reply_markup=keyboards.get_back_keyboard())
@@ -140,11 +191,17 @@ async def show_all_links(callback_query: CallbackQuery, state: FSMContext, agent
     if user_id is None:
         return
 
+    bot_logger.info(
+        f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
+        f' on state:{await state.get_state()} for show_all_links')
+
     await state.set_state(MenuStates.WAITING)
     await callback_query.answer()
 
     try:
         playlists = await agent.get_user_track_lists(user_id)
+        bot_logger.info(f'Got links:{playlists} on {callback_query.message.message_id}'
+                        f' for {user_id}-{callback_query.from_user.username}')
         if len(playlists) == 0:
             with suppress(TelegramBadRequest):
                 await callback_query.message.edit_text(text='У вас не указан ни один трек-лист',
@@ -158,7 +215,8 @@ async def show_all_links(callback_query: CallbackQuery, state: FSMContext, agent
                                                        disable_web_page_preview=True,
                                                        parse_mode=ParseMode.HTML)
     except Exception as e:
-        logging.log(level=logging.WARNING, msg=str(e))
+        bot_logger.warning(f'On {callback_query.message.message_id}'
+                           f' for {user_id}-{callback_query.from_user.username}: {str(e)}')
         with suppress(TelegramBadRequest):
             await callback_query.message.edit_text(text=INTERNAL_ERROR_DEFAULT_TEXT,
                                                    reply_markup=keyboards.get_back_keyboard())
@@ -170,6 +228,8 @@ async def show_all_links(callback_query: CallbackQuery, state: FSMContext, agent
 async def go_to_faq_info(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
+    if not await __check_user_and_logging(callback_query, 'go_to_faq_info', state):
+        return
     await state.set_state(MenuStates.USER_INFO)
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_user_info_keyboard())
@@ -179,6 +239,8 @@ async def go_to_faq_info(callback_query: CallbackQuery, state: FSMContext) -> No
 async def show_change_data_variants_info(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
+    if not await __check_user_and_logging(callback_query, 'show_change_data_variants_info', state):
+        return
     await state.set_state(MenuStates.MAIN_MENU)
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_main_menu_keyboard())
@@ -187,6 +249,8 @@ async def show_change_data_variants_info(callback_query: CallbackQuery, state: F
 @menu_router.callback_query(MenuStates.MAIN_MENU, F.data == KeyboardCallbackData.TOOLS)
 async def show_tools(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
+        return
+    if not await __check_user_and_logging(callback_query, 'show_tools', state):
         return
     await state.set_state(MenuStates.TOOLS)
     with suppress(TelegramBadRequest):
@@ -204,17 +268,21 @@ async def show_all_concerts(callback_query: CallbackQuery, state: FSMContext, ag
     if user_id is None:
         return
 
+    bot_logger.info(
+        f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
+        f' on state:{await state.get_state()} for show_all_concerts')
+
     with suppress(TelegramBadRequest):
         await bot.delete_message(chat_id=callback_query.message.chat.id, message_id=callback_query.message.message_id)
     await state.set_state(MenuStates.WAITING)
 
     concerts_list = []
 
-
     try:
         await bot.send_chat_action(chat_id=callback_query.message.chat.id, action='typing')
         concerts = await agent.get_user_concerts(user_id)
-
+        bot_logger.debug(f'Got concerts for {callback_query.message.message_id} of'
+                         f' {user_id}-{callback_query.from_user.username}')
         if len(concerts) == 0:
             await bot.send_message(chat_id=callback_query.message.chat.id, text='Концерты не обнаружены')
             msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
@@ -282,13 +350,18 @@ async def show_all_concerts(callback_query: CallbackQuery, state: FSMContext, ag
         msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
                                      reply_markup=keyboards.get_main_menu_keyboard())
 
-
         await set_last_keyboard_id(msg.message_id, state)
         await state.set_state(MenuStates.MAIN_MENU)
 
 
 @menu_router.callback_query(MenuStates.CONCERTS_SHOW, F.data == KeyboardCallbackData.BACK)
 async def return_from_show_concerts(callback_query: CallbackQuery, state: FSMContext) -> None:
+    if not isinstance(callback_query.message, Message):
+        return
+    if not await __check_user_and_logging(callback_query, 'return_from_show_concerts', state):
+        return
+    if callback_query.message is None:
+        return
     await state.set_state(MenuStates.MAIN_MENU)
     user_data = await state.get_data()
     user_data.pop('current_page')
@@ -301,9 +374,20 @@ async def return_from_show_concerts(callback_query: CallbackQuery, state: FSMCon
 @menu_router.callback_query(MenuStates.CONCERTS_SHOW, F.data == KeyboardCallbackData.BACKWARD)
 @menu_router.callback_query(MenuStates.CONCERTS_SHOW, F.data == KeyboardCallbackData.FORWARD)
 async def show_concerts_page(callback_query: CallbackQuery, state: FSMContext) -> None:
+    if not isinstance(callback_query.message, Message):
+        return
+    if callback_query.from_user is None:
+        return
+    user_id = callback_query.from_user.id
+    if user_id is None:
+        return
+
+    bot_logger.info(
+        f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
+        f' on state:{await state.get_state()} for show_concert_page')
     user_data = await state.get_data()
     current_page = user_data['current_page']
-    concerts: [str] = user_data['concerts']
+    concerts: List[str] = user_data['concerts']
     if callback_query.data == KeyboardCallbackData.BACKWARD:
         current_page -= 1
     else:
@@ -317,7 +401,7 @@ async def show_concerts_page(callback_query: CallbackQuery, state: FSMContext) -
         current_page = 0
 
     page_txt = ''
-    for i in range(current_page*5, current_page*5 + 5):
+    for i in range(current_page * 5, current_page * 5 + 5):
         if i == len(concerts):
             break
         page_txt += f'{i + 1}\n{concerts[i]}\n\n'
@@ -326,6 +410,11 @@ async def show_concerts_page(callback_query: CallbackQuery, state: FSMContext) -
     if len(concerts) % 5 != 0:
         all_pages += 1
     page_txt += f'Страница {current_page + 1} из {all_pages}'
+
+
+    bot_logger.debug(
+        f'Showing page {current_page + 1} of {all_pages} for {callback_query.message.message_id}'
+        f' from {user_id}-{callback_query.from_user.username}')
 
     await state.update_data(current_page=current_page)
     with suppress(TelegramBadRequest):
@@ -340,6 +429,8 @@ async def show_concerts_page(callback_query: CallbackQuery, state: FSMContext) -
 async def go_to_menu_tools(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
+    if not await __check_user_and_logging(callback_query, 'go_to_menu_tools', state):
+        return
     await state.set_state(MenuStates.MAIN_MENU)
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_main_menu_keyboard())
@@ -348,6 +439,8 @@ async def go_to_menu_tools(callback_query: CallbackQuery, state: FSMContext) -> 
 @menu_router.callback_query(MenuStates.TOOLS, F.data == KeyboardCallbackData.NOTICE_MANAGEMENT)
 async def show_variants(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
+        return
+    if not await __check_user_and_logging(callback_query, 'show_variants', state):
         return
     user_data = await state.get_data()
     await state.set_state(MenuStates.MANAGING_NOTIFICATIONS)
@@ -361,6 +454,8 @@ async def show_variants(callback_query: CallbackQuery, state: FSMContext) -> Non
 async def swap_notice_enable(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
+    if not await __check_user_and_logging(callback_query, 'swap_notice_enable', state):
+        return
     user_data = await state.get_data()
     user_data['notices_enabled'] = True
     with suppress(TelegramBadRequest):
@@ -373,6 +468,8 @@ async def swap_notice_enable(callback_query: CallbackQuery, state: FSMContext) -
 async def swap_notice_enable_disable(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
+    if not await __check_user_and_logging(callback_query, 'show_notice_enable_disable', state):
+        return
     user_data = await state.get_data()
     user_data['notices_enabled'] = False
     with suppress(TelegramBadRequest):
@@ -384,6 +481,8 @@ async def swap_notice_enable_disable(callback_query: CallbackQuery, state: FSMCo
 @menu_router.callback_query(MenuStates.MANAGING_NOTIFICATIONS, F.data == KeyboardCallbackData.BACK)
 async def go_to_tools(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
+        return
+    if not await __check_user_and_logging(callback_query, 'go_to_tools', state):
         return
     await state.set_state(MenuStates.TOOLS)
     with suppress(TelegramBadRequest):
