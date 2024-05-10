@@ -1,7 +1,6 @@
 import logging
 
-from aiogram import Router, F
-from aiogram.enums import ContentType
+from aiogram import Router
 from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, ReplyKeyboardRemove
