@@ -1,6 +1,7 @@
 import logging
 
-from aiogram import Router
+from aiogram import Router, F
+from aiogram.enums import ContentType
 from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, ReplyKeyboardRemove
@@ -41,7 +42,8 @@ async def command_start(message: Message, state: FSMContext, agent: UserServiceA
         await state.update_data(is_first_city=True)
         await set_last_keyboard_id(-1, state)
         await state.set_state(RegistrationStates.ADD_FIRST_CITY)
-        bot_logger.info(f'Get command start {message.message_id} on registration for {user_id}-{message.from_user.username}')
+        bot_logger.info(f'Get command start {message.message_id} on registration for'
+                        f' {user_id}-{message.from_user.username}')
     except UserAlreadyExistsException:
         await message.answer(text=f'Привет, {message.from_user.username},'
                                   f' мы вас помним, вы уже регистрировались',
