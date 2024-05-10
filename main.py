@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 from logging import config
 
@@ -19,8 +18,6 @@ async def main() -> None:
         user_service_host=settings.user_service_host,
         user_service_port=settings.user_service_port,
     )
-
-    # TODO: сделать логирование в обработке ответов от бэкенда
 
     storage = RedisStorage.from_url(f'redis://:{settings.redis_password}@{settings.redis_host}:{settings.redis_port}')
 

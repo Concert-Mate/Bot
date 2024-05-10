@@ -6,7 +6,6 @@ from aiogram import F
 from aiogram import Router
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.types import CallbackQuery, Message
 from redis.asyncio import Redis
 
@@ -203,7 +202,8 @@ async def add_one_city(message: Message, state: FSMContext, agent: UserServiceAg
 
 
 @change_data_router.callback_query(ChangeDataStates.CITY_NAME_IS_FUZZY, F.data == KeyboardCallbackData.APPLY)
-async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext, agent: UserServiceAgent, redis_storage: Redis) -> None:
+async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext, agent: UserServiceAgent,
+                             redis_storage: Redis) -> None:
     if callback_query.from_user is None:
         return
     if callback_query.message is None:
@@ -366,7 +366,8 @@ async def return_from_remove(callback_query: CallbackQuery, state: FSMContext) -
 
 
 @change_data_router.callback_query(ChangeDataStates.REMOVE_CITY, F.data != KeyboardCallbackData.BACK)
-async def remove_city(callback_query: CallbackQuery, state: FSMContext, agent: UserServiceAgent, redis_storage: Redis) -> None:
+async def remove_city(callback_query: CallbackQuery, state: FSMContext, agent: UserServiceAgent,
+                      redis_storage: Redis) -> None:
     if not isinstance(callback_query.message, Message):
         return
     if callback_query.from_user is None:
@@ -616,7 +617,8 @@ async def return_from_remove_playlist(callback_query: CallbackQuery, state: FSMC
 
 
 @change_data_router.callback_query(ChangeDataStates.REMOVE_PLAYLIST, F.data != KeyboardCallbackData.BACK)
-async def remove_playlist(callback_query: CallbackQuery, state: FSMContext, agent: UserServiceAgent, redis_storage: Redis) -> None:
+async def remove_playlist(callback_query: CallbackQuery, state: FSMContext, agent: UserServiceAgent,
+                          redis_storage: Redis) -> None:
     playlist = callback_query.data
     if playlist is None:
         return

@@ -16,7 +16,7 @@ from services.user_service import (UserServiceAgent, InvalidCityException,
                                    InvalidTrackListException, TrackListAlreadyAddedException)
 from services.user_service.exceptions import InvalidCoordsException
 from .constants import (SKIP_COMMAND_FILTER, TEXT_WITHOUT_COMMANDS_FILTER,
-                        INTERNAL_ERROR_DEFAULT_TEXT, MAXIMUM_CITY_LEN, MAXIMUM_LINK_LEN)
+                        INTERNAL_ERROR_DEFAULT_TEXT, MAXIMUM_CITY_LEN, MAXIMUM_LINK_LEN, INSTRUCTION_PHOTO_ID)
 from .user_data_manager import set_last_keyboard_id, get_last_keyboard_id
 
 registration_router = Router()
@@ -152,9 +152,16 @@ async def skip_add_cities(message: Message, state: FSMContext) -> None:
     user_data.update(is_first_link=True)
     await state.set_data(user_data)
 
-    await message.answer(text='Введите ссылку на альбом \"Яндекс-Музыки\",'
-                              ' откуда мы будем выбирать ваших любимых исполнителей',
+    await message.answer(text='Введите ссылку на плейлист/альбом \"Яндекс-Музыки\",'
+                              ' откуда мы будем выбирать ваших любимых исполнителей\n'
+                              'Например вы можете прислать ваш плейлист \"Мне нравится\"\n'
+                              'Чтобы вам было легче справиться, следуйте данной инструкции:',
                          reply_markup=ReplyKeyboardRemove())
+    try:
+        await message.answer_photo(photo=INSTRUCTION_PHOTO_ID)
+    except Exception as e:
+        bot_logger.warning(f'Failed to send photo from {user_id}-{message.from_user.username}'
+                           f' on state:{await state.get_state()}. {str(e)}')
 
 
 @registration_router.message(RegistrationStates.ADD_CITIES_IN_LOOP, TEXT_WITHOUT_COMMANDS_FILTER)
@@ -229,7 +236,8 @@ async def apply_city_callback(callback_query: CallbackQuery, state: FSMContext, 
     if bot is None:
         return
 
-    bot_logger.info(f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
+    bot_logger.info(f'Got message {callback_query.message.message_id} '
+                    f'from {user_id}-{callback_query.from_user.username}'
                     f' on state:{await state.get_state()} for apply_city_callback')
 
     user_data = await state.get_data()
@@ -274,7 +282,8 @@ async def apply_city_callback(callback_query: CallbackQuery, state: FSMContext, 
                          f' {user_id}-{callback_query.from_user.username}')
     except Exception as e:
         bot_logger.warning(
-            f'On command {callback_query.message.message_id} for {user_id}-{callback_query.from_user.username}: {str(e)}')
+            f'On command {callback_query.message.message_id} for {user_id}-{callback_query.from_user.username}:'
+            f' {str(e)}')
         with suppress(TelegramBadRequest):
             if isinstance(callback_query.message, Message):
                 await callback_query.message.edit_text(text=INTERNAL_ERROR_DEFAULT_TEXT,
@@ -291,7 +300,8 @@ async def deny_city_variant(callback_query: CallbackQuery, state: FSMContext) ->
     user_id = callback_query.from_user.id
     if user_id is None:
         return
-    bot_logger.info(f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
+    bot_logger.info(f'Got message {callback_query.message.message_id} '
+                    f'from {user_id}-{callback_query.from_user.username}'
                     f' on state:{await state.get_state()} for deny_city_variant')
     user_data = await state.get_data()
 
@@ -321,6 +331,10 @@ async def skip_add_links(message: Message, state: FSMContext) -> None:
     user_id = message.from_user.id
     if user_id is None:
         return
+    user_data = await state.get_data()
+    if user_data['is_first_link']:
+        return
+
     bot_logger.info(f'Got message {message.message_id} from {user_id}-{message.from_user.username}'
                     f' on state:{await state.get_state()} for skip_add_links')
     await state.set_state(MenuStates.MAIN_MENU)

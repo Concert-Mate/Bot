@@ -90,7 +90,8 @@ async def show_dev_info(callback_query: CallbackQuery, state: FSMContext) -> Non
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=DEV_COMM_TEXT,
                                                reply_markup=keyboards.get_back_keyboard(),
-                                               parse_mode=ParseMode.HTML)
+                                               parse_mode=ParseMode.HTML,
+                                               disable_web_page_preview=True)
 
 
 @menu_router.callback_query(MenuStates.HELP, F.data == KeyboardCallbackData.FAQ)
@@ -104,7 +105,8 @@ async def show_faq_info(callback_query: CallbackQuery, state: FSMContext) -> Non
     await state.set_state(MenuStates.HELP_DEAD_END)
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=FAQ_TEXT,
-                                               reply_markup=keyboards.get_back_keyboard())
+                                               reply_markup=keyboards.get_back_keyboard(),
+                                               parse_mode=ParseMode.HTML)
 
 
 @menu_router.callback_query(MenuStates.HELP, F.data == KeyboardCallbackData.BACK)
