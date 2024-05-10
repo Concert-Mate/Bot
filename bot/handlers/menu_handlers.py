@@ -17,7 +17,7 @@ from concert_message_builder import get_date_time
 from services.user_service import UserServiceAgent
 from .cache_models import CachePlaylists, CacheCities, CacheConcerts
 from .constants import INTERNAL_ERROR_DEFAULT_TEXT, CHOOSE_ACTION_TEXT, ABOUT_TEXT, FAQ_TEXT, DEV_COMM_TEXT, \
-    INSTRUCTION_PHOTO_ID
+    INSTRUCTION_PHOTO_LINK
 from .user_data_manager import set_last_keyboard_id, get_last_keyboard_id
 
 menu_router = Router()
@@ -113,7 +113,7 @@ async def show_faq_info(callback_query: CallbackQuery, state: FSMContext) -> Non
         await bot.delete_message(chat_id=callback_query.message.chat.id, message_id=get_last_keyboard_id(user_data))
     try:
         await bot.send_photo(chat_id=callback_query.message.chat.id,
-                             photo=INSTRUCTION_PHOTO_ID,
+                             photo=INSTRUCTION_PHOTO_LINK,
                              caption='Инструкция как получить ссылку на альбом/плейлист')
     except Exception as e:
         bot_logger.warning(f'Failed to send photo from'

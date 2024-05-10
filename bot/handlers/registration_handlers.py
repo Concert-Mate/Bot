@@ -16,7 +16,7 @@ from services.user_service import (UserServiceAgent, InvalidCityException,
                                    InvalidTrackListException, TrackListAlreadyAddedException)
 from services.user_service.exceptions import InvalidCoordsException
 from .constants import (SKIP_COMMAND_FILTER, TEXT_WITHOUT_COMMANDS_FILTER,
-                        INTERNAL_ERROR_DEFAULT_TEXT, MAXIMUM_CITY_LEN, MAXIMUM_LINK_LEN, INSTRUCTION_PHOTO_ID)
+                        INTERNAL_ERROR_DEFAULT_TEXT, MAXIMUM_CITY_LEN, MAXIMUM_LINK_LEN, INSTRUCTION_PHOTO_LINK)
 from .user_data_manager import set_last_keyboard_id, get_last_keyboard_id
 
 registration_router = Router()
@@ -158,7 +158,7 @@ async def skip_add_cities(message: Message, state: FSMContext) -> None:
                               'Чтобы вам было легче справиться, следуйте данной инструкции:',
                          reply_markup=ReplyKeyboardRemove())
     try:
-        await message.answer_photo(photo=INSTRUCTION_PHOTO_ID)
+        await message.answer_photo(photo=INSTRUCTION_PHOTO_LINK)
     except Exception as e:
         bot_logger.warning(f'Failed to send photo from {user_id}-{message.from_user.username}'
                            f' on state:{await state.get_state()}. {str(e)}')
