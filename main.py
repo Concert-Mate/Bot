@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from logging import config
 
@@ -33,6 +34,7 @@ async def main() -> None:
     bot: Bot = create_bot(settings)
     dp = Dispatcher(storage=storage)
     dp['agent'] = agent
+    dp['redis_storage'] = storage.redis
 
     dp.include_router(handlers.common_router)
     dp.callback_query.middleware(AntiFloodMiddleware())

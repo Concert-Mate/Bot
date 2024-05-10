@@ -1,3 +1,4 @@
+import json
 import logging
 from contextlib import suppress
 
@@ -5,7 +6,9 @@ from aiogram import F
 from aiogram import Router
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
+from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.types import CallbackQuery, Message
+from redis.asyncio import Redis
 
 from bot import keyboards
 from bot.keyboards import KeyboardCallbackData
@@ -13,6 +16,7 @@ from bot.states import MenuStates, ChangeDataStates
 from services.user_service import (UserServiceAgent, InvalidCityException,
                                    FuzzyCityException, CityAlreadyAddedException,
                                    TrackListAlreadyAddedException, InvalidTrackListException)
+from .cache_models import CacheCities, CachePlaylists
 from .constants import (TEXT_WITHOUT_COMMANDS_FILTER, INTERNAL_ERROR_DEFAULT_TEXT,
                         CHOOSE_ACTION_TEXT, MAXIMUM_CITY_LEN, MAXIMUM_LINK_LEN)
 from .user_data_manager import set_last_keyboard_id, get_last_keyboard_id
@@ -39,8 +43,9 @@ async def show_change_data_variants(callback_query: CallbackQuery, state: FSMCon
     user_id = callback_query.from_user.id
     if user_id is None:
         return
-    bot_logger.info(f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
-                    f' on state:{await state.get_state()} for show_change_data_variants')
+    bot_logger.info(
+        f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
+        f' on state:{await state.get_state()} for show_change_data_variants')
     await state.set_state(MenuStates.MAIN_MENU)
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_main_menu_keyboard())
@@ -55,8 +60,9 @@ async def add_city_text_send(callback_query: CallbackQuery, state: FSMContext) -
     user_id = callback_query.from_user.id
     if user_id is None:
         return
-    bot_logger.info(f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
-                    f' on state:{await state.get_state()} for add_city_text_send')
+    bot_logger.info(
+        f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
+        f' on state:{await state.get_state()} for add_city_text_send')
 
     await state.set_state(ChangeDataStates.ENTER_NEW_CITY)
     with suppress(TelegramBadRequest):
@@ -96,8 +102,9 @@ async def cancel_add_city(callback_query: CallbackQuery, state: FSMContext) -> N
     user_id = callback_query.from_user.id
     if user_id is None:
         return
-    bot_logger.info(f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
-                    f' on state:{await state.get_state()} for cancel_add_city')
+    bot_logger.info(
+        f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
+        f' on state:{await state.get_state()} for cancel_add_city')
     await state.set_state(MenuStates.CHANGE_DATA)
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT,
@@ -105,7 +112,8 @@ async def cancel_add_city(callback_query: CallbackQuery, state: FSMContext) -> N
 
 
 @change_data_router.message(ChangeDataStates.ENTER_NEW_CITY, TEXT_WITHOUT_COMMANDS_FILTER)
-async def add_one_city(message: Message, state: FSMContext, agent: UserServiceAgent) -> None:
+async def add_one_city(message: Message, state: FSMContext, agent: UserServiceAgent,
+                       redis_storage: Redis) -> None:
     if message.from_user is None:
         return
     user_id = message.from_user.id
@@ -142,6 +150,29 @@ async def add_one_city(message: Message, state: FSMContext, agent: UserServiceAg
     try:
         await agent.add_user_city(user_id, city)
         await message.answer(text=f'Город {city} добавлен успешно.')
+
+        cities: str = await redis_storage.get(f'{user_id}:cities')
+        if cities is not None:
+            try:
+                cities_parsed = CacheCities.model_validate_json(cities)
+                cities_parsed.cities.append(city)
+                json_str = json.dumps({'cities': cities_parsed.cities})
+                await redis_storage.set(name=f'{user_id}:cities', value=json_str, ex=120)
+                bot_logger.debug(f'Update cache for {message.message_id} of'
+                                 f' {user_id}-{message.from_user.username}')
+            except Exception as e:
+                bot_logger.warning(f'Caching error for {message.message_id} of'
+                                   f' {user_id}-{message.from_user.username}. {str(e)}')
+
+        try:
+            await redis_storage.delete(f'{user_id}:concerts')
+            bot_logger.debug(f'Removed concerts cache for {message.message_id} of'
+                             f' {user_id}-{message.from_user.username}')
+        except Exception as ex:
+            bot_logger.debug(f'Failed to remove concerts cache for {message.message_id} of'
+                             f' {user_id}-{message.from_user.username}. {str(ex)}')
+
+
         bot_logger.info(f'Successfully city {city} added for {message.message_id} of'
                         f' {user_id}-{message.from_user.username}')
     except InvalidCityException:
@@ -172,7 +203,7 @@ async def add_one_city(message: Message, state: FSMContext, agent: UserServiceAg
 
 
 @change_data_router.callback_query(ChangeDataStates.CITY_NAME_IS_FUZZY, F.data == KeyboardCallbackData.APPLY)
-async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext, agent: UserServiceAgent) -> None:
+async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext, agent: UserServiceAgent, redis_storage: Redis) -> None:
     if callback_query.from_user is None:
         return
     if callback_query.message is None:
@@ -184,8 +215,9 @@ async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext, a
     if bot is None:
         return
 
-    bot_logger.info(f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
-                    f' on state:{await state.get_state()} for apply_city_variant')
+    bot_logger.info(
+        f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
+        f' on state:{await state.get_state()} for apply_city_variant')
 
     await state.set_state(MenuStates.WAITING)
 
@@ -196,6 +228,27 @@ async def apply_city_variant(callback_query: CallbackQuery, state: FSMContext, a
 
         bot_logger.info(f'Successfully added city:{city} for {callback_query.message.message_id} of'
                         f' {user_id}-{callback_query.from_user.username}')
+
+        cities: str = await redis_storage.get(f'{user_id}:cities')
+        if cities is not None:
+            try:
+                cities_parsed = CacheCities.model_validate_json(cities)
+                cities_parsed.cities.append(city)
+                json_str = json.dumps({'cities': cities_parsed.cities})
+                await redis_storage.set(name=f'{user_id}:cities', value=json_str, ex=120)
+                bot_logger.debug(f'Update cache for {callback_query.message.message_id} of'
+                                 f' {user_id}-{callback_query.from_user.username}')
+            except Exception as e:
+                bot_logger.warning(f'Caching error for {callback_query.message.message_id} of'
+                                   f' {user_id}-{callback_query.from_user.username}. {str(e)}')
+
+        try:
+            await redis_storage.delete(f'{user_id}:concerts')
+            bot_logger.debug(f'Removed concerts cache for {callback_query.message.message_id} of'
+                             f' {user_id}-{callback_query.from_user.username}')
+        except Exception as ex:
+            bot_logger.debug(f'Failed to remove concerts cache for {callback_query.message.message_id} of'
+                             f' {user_id}-{callback_query.from_user.username}. {str(ex)}')
 
         with suppress(TelegramBadRequest):
             await bot.edit_message_text(chat_id=callback_query.message.chat.id, text='Город успешно добавлен',
@@ -242,8 +295,9 @@ async def deny_city_variant(callback_query: CallbackQuery, state: FSMContext) ->
     user_id = callback_query.from_user.id
     if user_id is None:
         return
-    bot_logger.info(f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
-                    f' on state:{await state.get_state()} for deny_city_variant')
+    bot_logger.info(
+        f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
+        f' on state:{await state.get_state()} for deny_city_variant')
     await state.set_state(MenuStates.CHANGE_DATA)
 
     user_data = await state.get_data()
@@ -266,8 +320,9 @@ async def show_cities_as_inline_keyboard(callback_query: CallbackQuery, state: F
     if user_id is None:
         return
 
-    bot_logger.info(f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
-                    f' on state:{await state.get_state()} for show_cities_as_inline_keyboard')
+    bot_logger.info(
+        f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
+        f' on state:{await state.get_state()} for show_cities_as_inline_keyboard')
 
     await state.set_state(MenuStates.WAITING)
     try:
@@ -301,8 +356,9 @@ async def return_from_remove(callback_query: CallbackQuery, state: FSMContext) -
     user_id = callback_query.from_user.id
     if user_id is None:
         return
-    bot_logger.info(f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
-                    f' on state:{await state.get_state()} for return_from_remove')
+    bot_logger.info(
+        f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
+        f' on state:{await state.get_state()} for return_from_remove')
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT,
                                                reply_markup=keyboards.get_change_data_keyboard())
@@ -310,7 +366,7 @@ async def return_from_remove(callback_query: CallbackQuery, state: FSMContext) -
 
 
 @change_data_router.callback_query(ChangeDataStates.REMOVE_CITY, F.data != KeyboardCallbackData.BACK)
-async def remove_city(callback_query: CallbackQuery, state: FSMContext, agent: UserServiceAgent) -> None:
+async def remove_city(callback_query: CallbackQuery, state: FSMContext, agent: UserServiceAgent, redis_storage: Redis) -> None:
     if not isinstance(callback_query.message, Message):
         return
     if callback_query.from_user is None:
@@ -322,8 +378,9 @@ async def remove_city(callback_query: CallbackQuery, state: FSMContext, agent: U
     if city is None:
         return
 
-    bot_logger.info(f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
-                    f' on state:{await state.get_state()} for remove_city. Remove city: {city}')
+    bot_logger.info(
+        f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
+        f' on state:{await state.get_state()} for remove_city. Remove city: {city}')
 
     bot = callback_query.bot
     if bot is None or callback_query.message is None:
@@ -333,6 +390,20 @@ async def remove_city(callback_query: CallbackQuery, state: FSMContext, agent: U
         await agent.delete_user_city(user_id, city)
         bot_logger.info(f'Successfully removed city:{city} for {callback_query.message.message_id} of'
                         f' {user_id}-{callback_query.from_user.username}')
+
+        cities: str = await redis_storage.get(f'{user_id}:cities')
+        if cities is not None:
+            try:
+                cities_parsed = CacheCities.model_validate_json(cities)
+                cities_parsed.cities.remove(city)
+                json_str = json.dumps({'cities': cities_parsed.cities})
+                await redis_storage.set(name=f'{user_id}:cities', value=json_str, ex=120)
+                bot_logger.debug(f'Update cache for {callback_query.message.message_id} of'
+                                 f' {user_id}-{callback_query.from_user.username}')
+            except Exception as e:
+                bot_logger.warning(f'Caching error for {callback_query.message.message_id} of'
+                                   f' {user_id}-{callback_query.from_user.username}. {str(e)}')
+
         with suppress(TelegramBadRequest):
             await bot.edit_message_text(chat_id=callback_query.message.chat.id,
                                         message_id=callback_query.message.message_id,
@@ -367,8 +438,9 @@ async def add_one_playlist_show_msg(callback_query: CallbackQuery, state: FSMCon
     user_id = callback_query.from_user
     if user_id is None:
         return
-    bot_logger.info(f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
-                    f' on state:{await state.get_state()} for add_one_playlist_show_msg')
+    bot_logger.info(
+        f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
+        f' on state:{await state.get_state()} for add_one_playlist_show_msg')
 
     await state.set_state(ChangeDataStates.ENTER_NEW_PLAYLIST)
     with suppress(TelegramBadRequest):
@@ -379,7 +451,7 @@ async def add_one_playlist_show_msg(callback_query: CallbackQuery, state: FSMCon
 
 
 @change_data_router.message(ChangeDataStates.ENTER_NEW_PLAYLIST, TEXT_WITHOUT_COMMANDS_FILTER)
-async def add_one_playlist(message: Message, state: FSMContext, agent: UserServiceAgent) -> None:
+async def add_one_playlist(message: Message, state: FSMContext, agent: UserServiceAgent, redis_storage: Redis) -> None:
     bot = message.bot
     if bot is None:
         return
@@ -413,6 +485,29 @@ async def add_one_playlist(message: Message, state: FSMContext, agent: UserServi
         track_list = await agent.add_user_track_list(user_id, link)
         bot_logger.debug(f'Successfully added track-list:{track_list} for {message.message_id} of'
                          f' {user_id}-{message.from_user.username}')
+
+        track_lists: str = await redis_storage.get(f'{user_id}:track-lists')
+        if track_lists is not None:
+            try:
+                track_lists_parsed = CachePlaylists.model_validate_json(track_lists)
+                track_lists_parsed.track_lists.append(track_list)
+                json_str = json.dumps({'track_lists': track_lists_parsed.track_lists})
+                await redis_storage.set(name=f'{user_id}:track-lists', value=json_str, ex=120)
+                bot_logger.debug(f'Update cache for {message.message_id} of'
+                                 f' {user_id}-{message.from_user.username}')
+            except Exception as e:
+                bot_logger.warning(f'Caching error for {message.message_id} of'
+                                   f' {user_id}-{message.from_user.username}. {str(e)}')
+
+        try:
+            await redis_storage.delete(f'{user_id}:concerts')
+            bot_logger.debug(f'Removed concerts cache for {message.message_id} of'
+                             f' {user_id}-{message.from_user.username}')
+        except Exception as ex:
+            bot_logger.debug(f'Failed to remove concerts cache for {message.message_id} of'
+                             f' {user_id}-{message.from_user.username}. {str(ex)}')
+
+
         await message.answer(text=f'Трек-лист {track_list.title} успешно добавлен')
     except TrackListAlreadyAddedException:
         await message.answer(text='Трек-лист уже был добавлен')
@@ -440,8 +535,9 @@ async def return_from_add_playlist(callback_query: CallbackQuery, state: FSMCont
     user_id = callback_query.from_user.id
     if user_id is None:
         return
-    bot_logger.info(f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
-                    f' on state:{await state.get_state()} for return_from_add_playlist')
+    bot_logger.info(
+        f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
+        f' on state:{await state.get_state()} for return_from_add_playlist')
     await state.set_state(MenuStates.CHANGE_DATA)
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT,
@@ -463,8 +559,9 @@ async def show_playlists_as_inline_keyboard(callback_query: CallbackQuery, state
     if user_id is None:
         return
 
-    bot_logger.info(f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
-                    f' on state:{await state.get_state()} for show_playlists_as_inline_keyboard')
+    bot_logger.info(
+        f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
+        f' on state:{await state.get_state()} for show_playlists_as_inline_keyboard')
 
     await state.set_state(MenuStates.WAITING)
     try:
@@ -509,8 +606,9 @@ async def return_from_remove_playlist(callback_query: CallbackQuery, state: FSMC
     user_id = callback_query.from_user.id
     if user_id is None:
         return
-    bot_logger.info(f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
-                    f' on state:{await state.get_state()} for return_from_remove_playlist')
+    bot_logger.info(
+        f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
+        f' on state:{await state.get_state()} for return_from_remove_playlist')
     await state.set_state(MenuStates.CHANGE_DATA)
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT,
@@ -518,7 +616,7 @@ async def return_from_remove_playlist(callback_query: CallbackQuery, state: FSMC
 
 
 @change_data_router.callback_query(ChangeDataStates.REMOVE_PLAYLIST, F.data != KeyboardCallbackData.BACK)
-async def remove_playlist(callback_query: CallbackQuery, state: FSMContext, agent: UserServiceAgent) -> None:
+async def remove_playlist(callback_query: CallbackQuery, state: FSMContext, agent: UserServiceAgent, redis_storage: Redis) -> None:
     playlist = callback_query.data
     if playlist is None:
         return
@@ -531,14 +629,32 @@ async def remove_playlist(callback_query: CallbackQuery, state: FSMContext, agen
     if user_id is None:
         return
 
-    bot_logger.info(f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
-                    f' on state:{await state.get_state()} for remove_playlist. Playlist:{playlist}')
+    bot_logger.info(
+        f'Got message {callback_query.message.message_id} from {user_id}-{callback_query.from_user.username}'
+        f' on state:{await state.get_state()} for remove_playlist. Playlist:{playlist}')
 
     await state.set_state(MenuStates.WAITING)
     try:
         await agent.delete_user_track_list(user_id, playlist)
         bot_logger.debug(f'Successfully removed track-list:{playlist} for {callback_query.message.message_id} of'
                          f' {user_id}-{callback_query.from_user.username}')
+
+        track_lists: str = await redis_storage.get(f'{user_id}:track-lists')
+        if track_lists is not None:
+            try:
+                track_lists_parsed = CachePlaylists.model_validate_json(track_lists)
+                for track_list in track_lists_parsed.track_lists:
+                    if track_list.url == playlist:
+                        track_lists_parsed.track_lists.remove(track_list)
+
+                json_str = json.dumps({'track_lists': track_lists_parsed.track_lists})
+                await redis_storage.set(name=f'{user_id}:track-lists', value=json_str, ex=120)
+                bot_logger.debug(f'Update cache for {callback_query.message.message_id} of'
+                                 f' {user_id}-{callback_query.from_user.username}')
+            except Exception as e:
+                bot_logger.warning(f'Caching error for {callback_query.message.message_id} of'
+                                   f' {user_id}-{callback_query.from_user.username}. {str(e)}')
+
         with suppress(TelegramBadRequest):
             await bot.edit_message_text(chat_id=callback_query.message.chat.id,
                                         message_id=callback_query.message.message_id,
