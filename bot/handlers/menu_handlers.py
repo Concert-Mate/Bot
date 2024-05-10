@@ -16,8 +16,9 @@ from bot.states import MenuStates
 from concert_message_builder import get_date_time
 from services.user_service import UserServiceAgent
 from .cache_models import CachePlaylists, CacheCities, CacheConcerts
-from .constants import INTERNAL_ERROR_DEFAULT_TEXT, CHOOSE_ACTION_TEXT, ABOUT_TEXT, FAQ_TEXT, DEV_COMM_TEXT
-from .user_data_manager import set_last_keyboard_id
+from .constants import INTERNAL_ERROR_DEFAULT_TEXT, CHOOSE_ACTION_TEXT, ABOUT_TEXT, FAQ_TEXT, DEV_COMM_TEXT, \
+    INSTRUCTION_PHOTO_ID
+from .user_data_manager import set_last_keyboard_id, get_last_keyboard_id
 
 menu_router = Router()
 
@@ -101,12 +102,29 @@ async def show_faq_info(callback_query: CallbackQuery, state: FSMContext) -> Non
 
     if not await __check_user_and_logging(callback_query, 'show_faq_info', state):
         return
+    bot = callback_query.bot
+    if bot is None:
+        return
+
+    user_data = await state.get_data()
 
     await state.set_state(MenuStates.HELP_DEAD_END)
     with suppress(TelegramBadRequest):
-        await callback_query.message.edit_text(text=FAQ_TEXT,
-                                               reply_markup=keyboards.get_back_keyboard(),
-                                               parse_mode=ParseMode.HTML)
+        await bot.delete_message(chat_id=callback_query.message.chat.id, message_id=get_last_keyboard_id(user_data))
+    try:
+        await bot.send_photo(chat_id=callback_query.message.chat.id,
+                             photo=INSTRUCTION_PHOTO_ID,
+                             caption='Инструкция как получить ссылку на альбом/плейлист')
+    except Exception as e:
+        bot_logger.warning(f'Failed to send photo from'
+                           f' {callback_query.from_user.id}-{callback_query.from_user.username}'
+                           f' on state:{await state.get_state()}. {str(e)}')
+
+    msg = await bot.send_message(chat_id=callback_query.message.chat.id,
+                                 text=FAQ_TEXT,
+                                 reply_markup=keyboards.get_back_keyboard(),
+                                 parse_mode=ParseMode.HTML)
+    await set_last_keyboard_id(msg.message_id, state)
 
 
 @menu_router.callback_query(MenuStates.HELP, F.data == KeyboardCallbackData.BACK)
@@ -423,7 +441,6 @@ async def show_all_concerts(callback_query: CallbackQuery, state: FSMContext, ag
                         f' <b>{concert.min_price.currency}</b>\n')
             txt += f'Купить билет можно <a href=\"{concert.afisha_url}\">здесь</a>'
             concerts_list.append(txt)
-
 
         json_model = CacheConcerts(concerts=concerts_list)
         json_str = json_model.model_dump_json()
