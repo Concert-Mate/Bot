@@ -53,6 +53,7 @@ async def show_change_data_variants(callback_query: CallbackQuery, state: FSMCon
 async def show_help_variants(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
+
     if not await __check_user_and_logging(callback_query, 'show_help_variants', state):
         return
     await state.set_state(MenuStates.HELP)
@@ -64,8 +65,10 @@ async def show_help_variants(callback_query: CallbackQuery, state: FSMContext) -
 async def show_main_info(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
+
     if not await __check_user_and_logging(callback_query, 'show_main_info', state):
         return
+
     await state.set_state(MenuStates.HELP_DEAD_END)
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=ABOUT_TEXT,
@@ -76,8 +79,10 @@ async def show_main_info(callback_query: CallbackQuery, state: FSMContext) -> No
 async def show_dev_info(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
+
     if not await __check_user_and_logging(callback_query, 'show_dev_info', state):
         return
+
     await state.set_state(MenuStates.HELP_DEAD_END)
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=DEV_COMM_TEXT,
@@ -89,8 +94,10 @@ async def show_dev_info(callback_query: CallbackQuery, state: FSMContext) -> Non
 async def show_faq_info(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
+
     if not await __check_user_and_logging(callback_query, 'show_faq_info', state):
         return
+
     await state.set_state(MenuStates.HELP_DEAD_END)
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=FAQ_TEXT,
@@ -112,8 +119,10 @@ async def go_to_menu(callback_query: CallbackQuery, state: FSMContext) -> None:
 async def go_to_faq(callback_query: CallbackQuery, state: FSMContext) -> None:
     if not isinstance(callback_query.message, Message):
         return
+
     if not await __check_user_and_logging(callback_query, 'go_to_faq', state):
         return
+
     await state.set_state(MenuStates.HELP)
     with suppress(TelegramBadRequest):
         await callback_query.message.edit_text(text=CHOOSE_ACTION_TEXT, reply_markup=keyboards.get_help_keyboard())
@@ -401,6 +410,7 @@ async def show_concerts_page(callback_query: CallbackQuery, state: FSMContext) -
     if len(concerts) % 5 != 0:
         all_pages += 1
     page_txt += f'Страница {current_page + 1} из {all_pages}'
+
 
     bot_logger.debug(
         f'Showing page {current_page + 1} of {all_pages} for {callback_query.message.message_id}'

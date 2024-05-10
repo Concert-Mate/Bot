@@ -1,7 +1,7 @@
 from typing import Callable, Dict, Any, Awaitable
-
 from aiogram import BaseMiddleware
 from aiogram.types import CallbackQuery, Message
+
 from cachetools import TTLCache
 
 
@@ -37,3 +37,4 @@ class AntiFloodMiddlewareM(BaseMiddleware):
         else:
             self.limit[event.chat.id] = None
             return await handler(event, data)
+

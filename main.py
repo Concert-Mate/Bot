@@ -37,6 +37,7 @@ async def main() -> None:
     dp.include_router(handlers.common_router)
     dp.callback_query.middleware(AntiFloodMiddleware())
     dp.message.middleware(AntiFloodMiddlewareM())
+
     dp.include_router(handlers.registration_router)
     dp.include_router(handlers.menu_router)
     dp.include_router(handlers.change_data_router)
