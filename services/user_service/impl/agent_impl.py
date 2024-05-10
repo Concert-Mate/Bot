@@ -61,7 +61,6 @@ class UserServiceAgentImpl(UserServiceAgent):
         url: str = self.__get_user_track_lists_url(telegram_id)
         try:
             response = await self.__session.post(url=url, params={'url': track_list_url})
-            print(await response.text())
             parsed_response = UserTrackListResponse.model_validate_json(await response.text())
             self.__validate_add_link(parsed_response.status.code)
             if parsed_response.track_list is None:

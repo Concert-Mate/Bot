@@ -688,6 +688,16 @@ hiredis = ["hiredis (>=1.0.0)"]
 ocsp = ["cryptography (>=36.0.1)", "pyopenssl (==20.0.1)", "requests (>=2.26.0)"]
 
 [[package]]
+name = "stubs"
+version = "1.0.0"
+description = "Tools for setting up stubs and mocks."
+optional = false
+python-versions = "*"
+files = [
+    {file = "stubs-1.0.0-py3-none-any.whl", hash = "sha256:f328a0f99880b0684db69288dcb104fa93d942df298ddd1659edaa7521415da8"},
+]
+
+[[package]]
 name = "tomli"
 version = "2.0.1"
 description = "A lil' TOML parser"
@@ -696,6 +706,17 @@ python-versions = ">=3.7"
 files = [
     {file = "tomli-2.0.1-py3-none-any.whl", hash = "sha256:939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc"},
     {file = "tomli-2.0.1.tar.gz", hash = "sha256:de526c12914f0c550d15924c62d72abc48d6fe7364aa87328337a31007fe8a4f"},
+]
+
+[[package]]
+name = "types-cachetools"
+version = "5.3.0.7"
+description = "Typing stubs for cachetools"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "types-cachetools-5.3.0.7.tar.gz", hash = "sha256:27c982cdb9cf3fead8b0089ee6b895715ecc99dac90ec29e2cab56eb1aaf4199"},
+    {file = "types_cachetools-5.3.0.7-py3-none-any.whl", hash = "sha256:98c069dc7fc087b1b061703369c80751b0a0fc561f6fb072b554e5eee23773a0"},
 ]
 
 [[package]]
@@ -832,4 +853,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "6042dcee3e1ce7fc7d8e9e83835dddfe9f96546a9e4df5da08b39fbcf030c254"
+content-hash = "60337094673c310d5f4c47ee243cfd384cf4ef3ee99a77cb835680005747d633"

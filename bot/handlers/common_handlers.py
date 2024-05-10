@@ -13,12 +13,21 @@ from .user_data_manager import get_last_keyboard_id, set_last_keyboard_id
 
 common_router = Router()
 
+bot_logger = logging.getLogger('bot')
+
 
 @common_router.message(CommandStart())
 async def command_start(message: Message, state: FSMContext, agent: UserServiceAgent) -> None:
+
+
     if message.from_user is None:
         return
     user_id = message.from_user.id
+    bot_logger.info(f'Got message {message.message_id} from {user_id}-{message.from_user.username}'
+                    f' on state:{await state.get_state()} for command_start')
+    if await state.get_state() in RegistrationStates:
+        bot_logger.info(f'Get command start on registration: skip for {user_id}-{message.from_user.username}')
+        return
 
     await state.update_data(notices_enabled=True)  # Temp!
 
@@ -32,6 +41,7 @@ async def command_start(message: Message, state: FSMContext, agent: UserServiceA
         await state.update_data(is_first_city=True)
         await set_last_keyboard_id(-1, state)
         await state.set_state(RegistrationStates.ADD_FIRST_CITY)
+        bot_logger.info(f'Get command start {message.message_id} on registration for {user_id}-{message.from_user.username}')
     except UserAlreadyExistsException:
         await message.answer(text=f'Привет, {message.from_user.username},'
                                   f' мы вас помним, вы уже регистрировались',
@@ -47,10 +57,11 @@ async def command_start(message: Message, state: FSMContext, agent: UserServiceA
                 logging.log(level=logging.ERROR, msg=str(ex))
 
         msg = await message.answer(CHOOSE_ACTION_TEXT, reply_markup=get_main_menu_keyboard())
+        bot_logger.info(f'Get command {message.message_id} start on menu for {user_id}-{message.from_user.username}')
         await set_last_keyboard_id(msg.message_id, state)
 
     except Exception as e:
-        logging.log(level=logging.WARNING, msg=str(e))
+        bot_logger.warning(f'On {message.message_id} for {user_id}-{message.from_user.username}: {str(e)}')
         await message.answer(text=INTERNAL_ERROR_DEFAULT_TEXT)
 
 

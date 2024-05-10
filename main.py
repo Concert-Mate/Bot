@@ -1,12 +1,12 @@
 import asyncio
 import logging
-import sys
+from logging import config
 
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.redis import RedisStorage
 
 from bot import handlers
-from bot.handlers.throttling_protection import AntiFloodMiddleware
+from bot.handlers.throttling_protection import AntiFloodMiddleware, AntiFloodMiddlewareM
 from services.user_service import UserServiceAgent
 from services.user_service.impl.agent_impl import UserServiceAgentImpl
 from settings import settings
@@ -25,16 +25,18 @@ async def main() -> None:
 
     try:
         await storage.redis.ping()
-        logging.info('Connection with redis on bot is OK')
+        root_logger.info('Connection with redis on bot is OK')
     except Exception as e:
-        logging.error(msg=f'No connection with redis on bot. {str(e)}')
+        root_logger.error(msg=f'No connection with redis on bot. {str(e)}')
         return
 
     bot: Bot = create_bot(settings)
     dp = Dispatcher(storage=storage)
     dp['agent'] = agent
+
     dp.include_router(handlers.common_router)
     dp.callback_query.middleware(AntiFloodMiddleware())
+    dp.message.middleware(AntiFloodMiddlewareM())
     dp.include_router(handlers.registration_router)
     dp.include_router(handlers.menu_router)
     dp.include_router(handlers.change_data_router)
@@ -43,5 +45,6 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.config.fileConfig(fname='logging.ini')
+    root_logger = logging.getLogger('root')
     asyncio.run(main())
