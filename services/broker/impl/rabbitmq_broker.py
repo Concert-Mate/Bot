@@ -7,13 +7,15 @@ from yarl import URL
 
 from services.broker import Broker, BrokerEvent, BrokerException
 
+root_logger = logging.getLogger('root')
+
 
 class RabbitMQBroker(Broker):
     __connection: Connection
     __queue_name: str
 
     def __init__(self) -> None:
-        logging.getLogger('aio_pika').setLevel(logging.DEBUG)
+        pass
 
     async def connect(
             self,
@@ -25,14 +27,18 @@ class RabbitMQBroker(Broker):
     ) -> None:
         try:
             url: URL = URL(f'amqp://{user_name}:{password}@{host}:{port}/')
+            root_logger.debug(f'Trying to connect on amqp://{user_name}:**********@{host}:{port}/')
             self.__connection = Connection(url=url)
         except Exception as e:
+            root_logger.error(f'Failed to create connection: {str(e)}')
             raise BrokerException(f'Invalid connection params') from e
 
         try:
             await self.__connection.connect()
+            root_logger.debug(f'Successfully connected: {str(self.__connection)}')
             self.__queue_name = queue_name
         except Exception as e:
+            root_logger.error(f'Failed to connect: {str(e)}')
             raise BrokerException(f'Cannot connect to {self.__connection}') from e
 
     async def start_listening(
@@ -42,14 +48,17 @@ class RabbitMQBroker(Broker):
     ) -> None:
         try:
             async with self.__connection as connection:
+                root_logger.debug(f'Creating AMQP channel for connection')
                 channel: AbstractChannel = await connection.channel()
+                root_logger.debug(f'Channel created: {str(channel)}')
                 queue: AbstractQueue = await channel.get_queue(name=self.__queue_name)
-
+                root_logger.debug(f'Declare queue: {queue}')
                 async for message in queue:
                     event: BrokerEvent = RabbitMQBroker.__parse_event(message.body)
                     await on_message_callback(event)
                     await message.ack()
         except Exception as e:
+            root_logger.error(f'{str(e)}')
             await on_error_callback(e)
 
     @staticmethod
