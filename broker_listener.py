@@ -108,15 +108,17 @@ async def on_message(event: BrokerEvent) -> None:
     await connection.set(name=f'fsm:{event.user.telegram_id}:{event.user.telegram_id}:state',
                          value=str(MenuStates.MAIN_MENU.state))
     try:
+
         msg = await bot.send_message(chat_id=event.user.telegram_id, text=CHOOSE_ACTION_TEXT,
                                      reply_markup=get_main_menu_keyboard())
-    except TelegramBadRequest as e:
+        json_data = json.loads(data)
+        json_data['last_keyboard_id'] = msg.message_id
+        await connection.set(f'fsm:{event.user.telegram_id}:{event.user.telegram_id}:data',
+                             value=json.dumps(json_data))
+
+    except TelegramForbiddenError as e:
         broker_logger.warning(f'on {event.user.telegram_id} when tried to send keyboard exception: {str(e)}')
         return
-    json_data = json.loads(data)
-    json_data['last_keyboard_id'] = msg.message_id
-    await connection.set(f'fsm:{event.user.telegram_id}:{event.user.telegram_id}:data',
-                         value=json.dumps(json_data))
 
 
 async def on_error(exception: Exception) -> None:
