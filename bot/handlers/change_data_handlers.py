@@ -12,6 +12,7 @@ from redis.asyncio import Redis
 from bot import keyboards
 from bot.keyboards import KeyboardCallbackData
 from bot.states import MenuStates, ChangeDataStates
+from model.playlist import Playlist
 from services.user_service import (UserServiceAgent, InvalidCityException,
                                    FuzzyCityException, CityAlreadyAddedException,
                                    TrackListAlreadyAddedException, InvalidTrackListException)
@@ -171,7 +172,6 @@ async def add_one_city(message: Message, state: FSMContext, agent: UserServiceAg
             bot_logger.debug(f'Failed to remove concerts cache for {message.message_id} of'
                              f' {user_id}-{message.from_user.username}. {str(ex)}')
 
-
         bot_logger.info(f'Successfully city {city} added for {message.message_id} of'
                         f' {user_id}-{message.from_user.username}')
     except InvalidCityException:
@@ -311,7 +311,7 @@ async def deny_city_variant(callback_query: CallbackQuery, state: FSMContext) ->
 
 @change_data_router.callback_query(MenuStates.CHANGE_DATA, F.data == KeyboardCallbackData.REMOVE_CITY)
 async def show_cities_as_inline_keyboard(callback_query: CallbackQuery, state: FSMContext,
-                                         agent: UserServiceAgent) -> None:
+                                         agent: UserServiceAgent, redis_storage: Redis) -> None:
     if not isinstance(callback_query.message, Message):
         return
     if callback_query.from_user is None:
@@ -325,10 +325,36 @@ async def show_cities_as_inline_keyboard(callback_query: CallbackQuery, state: F
         f' on state:{await state.get_state()} for show_cities_as_inline_keyboard')
 
     await state.set_state(MenuStates.WAITING)
+
     try:
-        cities = await agent.get_user_cities(user_id)
-        bot_logger.info(f'Got cities:{cities} for {callback_query.message.message_id} of'
-                        f' {user_id}-{callback_query.from_user.username}')
+        from_cache = await redis_storage.get(name=f'{user_id}:cities')
+        cities: list[str] = []
+        is_got_info_from_cache = False
+
+        if from_cache is not None:
+            try:
+                cities = CacheCities.model_validate_json(from_cache).cities
+                bot_logger.debug(f'Get cached cities for {callback_query.message.message_id} of'
+                                 f' {user_id}-{callback_query.from_user.username}')
+                is_got_info_from_cache = True
+            except Exception as e:
+                bot_logger.warning(f'Caching error for {callback_query.message.message_id} of'
+                                   f' {user_id}-{callback_query.from_user.username}. {str(e)}')
+
+        if not is_got_info_from_cache:
+            cities = await agent.get_user_cities(user_id)
+            bot_logger.info(f'Got cities:{cities} for {callback_query.message.message_id} of'
+                            f' {user_id}-{callback_query.from_user.username}')
+
+            try:
+                json_str = json.dumps({'cities': cities})
+                await redis_storage.set(name=f'{user_id}:cities', value=json_str, ex=120)
+                bot_logger.debug(f'Put cities:{cities} in cache for {callback_query.message.message_id} of'
+                                 f' {user_id}-{callback_query.from_user.username}')
+            except Exception as e:
+                bot_logger.warning(f'Put cities in cache error for {callback_query.message.message_id} of'
+                                   f' {user_id}-{callback_query.from_user.username}. {str(e)}')
+
         if len(cities) == 0:
             with suppress(TelegramBadRequest):
                 await callback_query.message.edit_text(text='У вас не указан ни один город',
@@ -492,7 +518,7 @@ async def add_one_playlist(message: Message, state: FSMContext, agent: UserServi
             try:
                 track_lists_parsed = CachePlaylists.model_validate_json(track_lists)
                 track_lists_parsed.track_lists.append(track_list)
-                json_str = json.dumps({'track_lists': track_lists_parsed.track_lists})
+                json_str = CachePlaylists(track_lists=track_lists_parsed.track_lists).model_dump_json()
                 await redis_storage.set(name=f'{user_id}:track-lists', value=json_str, ex=120)
                 bot_logger.debug(f'Update cache for {message.message_id} of'
                                  f' {user_id}-{message.from_user.username}')
@@ -507,7 +533,6 @@ async def add_one_playlist(message: Message, state: FSMContext, agent: UserServi
         except Exception as ex:
             bot_logger.debug(f'Failed to remove concerts cache for {message.message_id} of'
                              f' {user_id}-{message.from_user.username}. {str(ex)}')
-
 
         await message.answer(text=f'Трек-лист {track_list.title} успешно добавлен')
     except TrackListAlreadyAddedException:
@@ -547,7 +572,7 @@ async def return_from_add_playlist(callback_query: CallbackQuery, state: FSMCont
 
 @change_data_router.callback_query(MenuStates.CHANGE_DATA, F.data == KeyboardCallbackData.REMOVE_LINK)
 async def show_playlists_as_inline_keyboard(callback_query: CallbackQuery, state: FSMContext,
-                                            agent: UserServiceAgent) -> None:
+                                            agent: UserServiceAgent, redis_storage: Redis) -> None:
     if not isinstance(callback_query.message, Message):
         return
     bot = callback_query.bot
@@ -565,8 +590,28 @@ async def show_playlists_as_inline_keyboard(callback_query: CallbackQuery, state
         f' on state:{await state.get_state()} for show_playlists_as_inline_keyboard')
 
     await state.set_state(MenuStates.WAITING)
+
     try:
-        playlists = await agent.get_user_track_lists(user_id)
+
+        from_cache = await redis_storage.get(name=f'{user_id}:track-lists')
+        playlists: list[Playlist] = []
+        is_got_info_from_cache = False
+        if from_cache is not None:
+            try:
+                playlists = CachePlaylists.model_validate_json(from_cache).track_lists
+                bot_logger.debug(f'Got playlists:{playlists} from cache for {callback_query.message.message_id} of'
+                                 f' {user_id}-{callback_query.from_user.username}')
+                is_got_info_from_cache = True
+            except Exception as ex:
+                bot_logger.warning(f'On {callback_query.message.message_id}'
+                                   f' for {user_id}-{callback_query.from_user.username}: {str(ex)}')
+        if not is_got_info_from_cache:
+            playlists = await agent.get_user_track_lists(user_id)
+            json_str = CachePlaylists(track_lists=playlists).model_dump_json()
+            await redis_storage.set(name=f'{user_id}:track-lists', value=json_str, ex=120)
+            bot_logger.debug(f'Put playlists:{playlists} on cache for {callback_query.message.message_id} of'
+                             f' {user_id}-{callback_query.from_user.username}')
+
         bot_logger.debug(f'Got track-lists:{playlists} for {callback_query.message.message_id} of'
                          f' {user_id}-{callback_query.from_user.username}')
         if len(playlists) == 0:
@@ -586,8 +631,9 @@ async def show_playlists_as_inline_keyboard(callback_query: CallbackQuery, state
             msg = await bot.send_message(chat_id=callback_query.message.chat.id,
                                          text='Выберите трек-лист, который нужно удалить',
                                          reply_markup=keyboards.get_inline_keyboard_for_playlists(
-                                             playlists))
+                                             len(playlists)))
             await set_last_keyboard_id(msg.message_id, state)
+            await state.update_data(playlists=CachePlaylists(track_lists=playlists).model_dump_json())
         await state.set_state(ChangeDataStates.REMOVE_PLAYLIST)
     except Exception as e:
         bot_logger.warning(f'On {callback_query.message.message_id}'
@@ -637,7 +683,11 @@ async def remove_playlist(callback_query: CallbackQuery, state: FSMContext, agen
 
     await state.set_state(MenuStates.WAITING)
     try:
-        await agent.delete_user_track_list(user_id, playlist)
+        user_data = await state.get_data()
+        playlist_pos = int(playlist)
+        playlists = CachePlaylists.model_validate_json(user_data['playlists']).track_lists
+        url = playlists[playlist_pos].url
+        await agent.delete_user_track_list(user_id, url)
         bot_logger.debug(f'Successfully removed track-list:{playlist} for {callback_query.message.message_id} of'
                          f' {user_id}-{callback_query.from_user.username}')
 
@@ -646,10 +696,10 @@ async def remove_playlist(callback_query: CallbackQuery, state: FSMContext, agen
             try:
                 track_lists_parsed = CachePlaylists.model_validate_json(track_lists)
                 for track_list in track_lists_parsed.track_lists:
-                    if track_list.url == playlist:
+                    if track_list.url == url:
                         track_lists_parsed.track_lists.remove(track_list)
 
-                json_str = json.dumps({'track_lists': track_lists_parsed.track_lists})
+                json_str = CachePlaylists(track_lists=track_lists_parsed.track_lists).model_dump_json()
                 await redis_storage.set(name=f'{user_id}:track-lists', value=json_str, ex=120)
                 bot_logger.debug(f'Update cache for {callback_query.message.message_id} of'
                                  f' {user_id}-{callback_query.from_user.username}')
@@ -665,6 +715,11 @@ async def remove_playlist(callback_query: CallbackQuery, state: FSMContext, agen
         msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
                                      reply_markup=keyboards.get_change_data_keyboard())
         await set_last_keyboard_id(msg.message_id, state)
+
+        user_data = await state.get_data()
+        user_data.pop('playlists')
+        await state.set_data(user_data)
+
         await state.set_state(MenuStates.CHANGE_DATA)
     except Exception as e:
         bot_logger.warning(f'On {callback_query.message.message_id}'
@@ -678,4 +733,9 @@ async def remove_playlist(callback_query: CallbackQuery, state: FSMContext, agen
         msg = await bot.send_message(chat_id=callback_query.message.chat.id, text=CHOOSE_ACTION_TEXT,
                                      reply_markup=keyboards.get_change_data_keyboard())
         await state.update_data(last_keyboard_id=msg.message_id)
+
+        user_data = await state.get_data()
+        user_data.pop('playlists')
+        await state.set_data(user_data)
+
         await state.set_state(MenuStates.CHANGE_DATA)

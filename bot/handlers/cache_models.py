@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 
-from model import Concert
 from model.playlist import Playlist
 
 
