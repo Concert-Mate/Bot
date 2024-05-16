@@ -78,12 +78,12 @@ def get_inline_keyboard_with_back(rows: list[str]) -> InlineKeyboardMarkup:
     return create_resizable_inline_keyboard(builder)
 
 
-def get_inline_keyboard_for_playlists(rows: list[Playlist]) -> InlineKeyboardMarkup:
+def get_inline_keyboard_for_playlists(count_of_playlists: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    for pos, row in enumerate(rows):
+    for i in range(count_of_playlists):
         builder.row(
             types.InlineKeyboardButton(
-                text=str(pos + 1), callback_data=row.url),
+                text=str(i + 1), callback_data=str(i)),
         )
     builder.row(types.InlineKeyboardButton(
         text='Назад', callback_data=KeyboardCallbackData.BACK,

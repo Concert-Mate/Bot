@@ -23,14 +23,20 @@ async def command_start(message: Message, state: FSMContext, agent: UserServiceA
     if message.from_user is None:
         return
     user_id = message.from_user.id
+
     bot_logger.info(f'Got message {message.message_id} from {user_id}-{message.from_user.username}'
                     f' on state:{await state.get_state()} for command_start')
+
     if await state.get_state() in RegistrationStates:
-        bot_logger.info(f'Get command start on registration: skip for {user_id}-{message.from_user.username}')
-        return
+        bot_logger.info(f'Get command start on registration: recreation for {user_id}-{message.from_user.username}')
+        try:
+            await agent.delete_user(user_id)
+        except Exception as ex:
+            bot_logger.warning(f'On {message.message_id} for {user_id}-{message.from_user.username}: {str(ex)}')
+            await message.answer(text=INTERNAL_ERROR_DEFAULT_TEXT)
+            return
 
     await state.update_data(notices_enabled=True)  # Temp!
-
     try:
         await agent.create_user(user_id)
         await message.answer(text=f'Привет, {message.from_user.username},'

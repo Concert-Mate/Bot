@@ -406,6 +406,10 @@ async def show_all_concerts(callback_query: CallbackQuery, state: FSMContext, ag
     try:
         await bot.send_chat_action(chat_id=callback_query.message.chat.id, action='typing')
         concerts = await agent.get_user_concerts(user_id)
+
+        if await state.get_state() != MenuStates.WAITING:
+            return
+
         bot_logger.debug(f'Got concerts for {callback_query.message.message_id} of'
                          f' {user_id}-{callback_query.from_user.username}')
 

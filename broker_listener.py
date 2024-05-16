@@ -1,12 +1,12 @@
 import asyncio
 import json
 import logging
-import sys
+import logging.config
 from asyncio import sleep
 
 from aiogram import Bot
 from aiogram.enums import ParseMode
-from aiogram.exceptions import TelegramBadRequest
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from redis import BusyLoadingError
 from redis.asyncio import Redis
 from redis.asyncio.retry import Retry
@@ -47,16 +47,18 @@ class Singleton:
 
 
 async def on_message(event: BrokerEvent) -> None:
+    broker_logger.info(f'got info for {event.user.telegram_id}')
     connection = Singleton.get_connection()
     removed_kb = False
     data = await connection.get(name=f'fsm:{event.user.telegram_id}:{event.user.telegram_id}:data')
     if data is not None:
+        broker_logger.debug(f'got data from redis for {event.user.telegram_id}')
         try:
             keyboard_id = TelegramUserData.model_validate_json(data).last_keyboard_id
             await bot.delete_message(chat_id=event.user.telegram_id, message_id=keyboard_id)
             removed_kb = True
         except Exception as ex:
-            logging.log(level=logging.WARNING, msg=str(ex))
+            broker_logger.warning(f'on {event.user.telegram_id} when tried to delete keyboard exception: {str(ex)}')
 
     for pos, concert in enumerate(event.concerts):
         txt = f'Скоро состоится <a href=\"{concert.afisha_url}\">концерт</a>!!!\n\n'
@@ -88,9 +90,10 @@ async def on_message(event: BrokerEvent) -> None:
                                    text=txt,
                                    parse_mode=ParseMode.HTML,
                                    disable_web_page_preview=True)
-        except TelegramBadRequest as e:
-            logging.warning(e)
+        except TelegramForbiddenError as e:
+            broker_logger.warning(f'on {event.user.telegram_id} when tried to send concert exception: {str(e)}')
             return
+
 
         if concert.map_url is not None:
             try:
@@ -98,14 +101,22 @@ async def on_message(event: BrokerEvent) -> None:
                 await bot.send_location(chat_id=event.user.telegram_id,
                                         longitude=lon, latitude=lat)
             except ValueError as e:
-                logging.log(level=logging.WARNING, msg=str(e))
+                broker_logger.warning(f'on {event.user.telegram_id} when tried to get location exception: {str(e)}')
+            except TelegramForbiddenError as e:
+                broker_logger.warning(f'on {event.user.telegram_id} when tried to send location exception: {str(e)}')
+                return
+
         await sleep(1)
 
     if removed_kb:
         await connection.set(name=f'fsm:{event.user.telegram_id}:{event.user.telegram_id}:state',
                              value=str(MenuStates.MAIN_MENU.state))
-        msg = await bot.send_message(chat_id=event.user.telegram_id, text=CHOOSE_ACTION_TEXT,
-                                     reply_markup=get_main_menu_keyboard())
+        try:
+            msg = await bot.send_message(chat_id=event.user.telegram_id, text=CHOOSE_ACTION_TEXT,
+                                         reply_markup=get_main_menu_keyboard())
+        except TelegramBadRequest as e:
+            broker_logger.warning(f'on {event.user.telegram_id} when tried to send keyboard exception: {str(e)}')
+            return
         json_data = json.loads(data)
         json_data['last_keyboard_id'] = msg.message_id
         await connection.set(f'fsm:{event.user.telegram_id}:{event.user.telegram_id}:data',
@@ -113,7 +124,7 @@ async def on_message(event: BrokerEvent) -> None:
 
 
 async def on_error(exception: Exception) -> None:
-    logging.error('An error with broker occurred: %s' % exception)
+    root_logger.error('An error with broker occurred: %s' % exception)
 
 
 async def main() -> None:
@@ -128,9 +139,9 @@ async def main() -> None:
         )
 
         await Singleton.get_connection().ping()
-        logging.info('Connection with redis on broker is OK')
+        root_logger.info('Connection with redis on broker is OK')
 
-        logging.info('Starting listening broker ...')
+        root_logger.info('Starting listening broker ...')
         await rabbitmq_broker.start_listening(
             on_message_callback=on_message,
             on_error_callback=on_error,
@@ -140,5 +151,7 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.config.fileConfig(fname='broker_logging.ini')
+    root_logger = logging.getLogger('root')
+    broker_logger = logging.getLogger('broker')
     asyncio.run(main())
