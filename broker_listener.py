@@ -116,7 +116,7 @@ async def on_message(event: BrokerEvent) -> None:
         await connection.set(f'fsm:{event.user.telegram_id}:{event.user.telegram_id}:data',
                              value=json.dumps(json_data))
 
-    except TelegramBadRequest as e:
+    except TelegramForbiddenError as e:
         broker_logger.warning(f'on {event.user.telegram_id} when tried to send keyboard exception: {str(e)}')
         return
 
