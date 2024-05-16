@@ -49,14 +49,12 @@ class Singleton:
 async def on_message(event: BrokerEvent) -> None:
     broker_logger.info(f'got info for {event.user.telegram_id}')
     connection = Singleton.get_connection()
-    removed_kb = False
     data = await connection.get(name=f'fsm:{event.user.telegram_id}:{event.user.telegram_id}:data')
     if data is not None:
         broker_logger.debug(f'got data from redis for {event.user.telegram_id}')
         try:
             keyboard_id = TelegramUserData.model_validate_json(data).last_keyboard_id
-            await bot.delete_message(chat_id=event.user.telegram_id, message_id=keyboard_id)
-            removed_kb = True
+            await bot.edit_message_text(chat_id=event.user.telegram_id, message_id=keyboard_id, text='Удалено')
         except Exception as ex:
             broker_logger.warning(f'on {event.user.telegram_id} when tried to delete keyboard exception: {str(ex)}')
 
@@ -94,7 +92,6 @@ async def on_message(event: BrokerEvent) -> None:
             broker_logger.warning(f'on {event.user.telegram_id} when tried to send concert exception: {str(e)}')
             return
 
-
         if concert.map_url is not None:
             try:
                 lon, lat = get_lon_lat_from_yandex_map_link(concert.map_url)
@@ -108,19 +105,18 @@ async def on_message(event: BrokerEvent) -> None:
 
         await sleep(1)
 
-    if removed_kb:
-        await connection.set(name=f'fsm:{event.user.telegram_id}:{event.user.telegram_id}:state',
-                             value=str(MenuStates.MAIN_MENU.state))
-        try:
-            msg = await bot.send_message(chat_id=event.user.telegram_id, text=CHOOSE_ACTION_TEXT,
-                                         reply_markup=get_main_menu_keyboard())
-        except TelegramBadRequest as e:
-            broker_logger.warning(f'on {event.user.telegram_id} when tried to send keyboard exception: {str(e)}')
-            return
-        json_data = json.loads(data)
-        json_data['last_keyboard_id'] = msg.message_id
-        await connection.set(f'fsm:{event.user.telegram_id}:{event.user.telegram_id}:data',
-                             value=json.dumps(json_data))
+    await connection.set(name=f'fsm:{event.user.telegram_id}:{event.user.telegram_id}:state',
+                         value=str(MenuStates.MAIN_MENU.state))
+    try:
+        msg = await bot.send_message(chat_id=event.user.telegram_id, text=CHOOSE_ACTION_TEXT,
+                                     reply_markup=get_main_menu_keyboard())
+    except TelegramBadRequest as e:
+        broker_logger.warning(f'on {event.user.telegram_id} when tried to send keyboard exception: {str(e)}')
+        return
+    json_data = json.loads(data)
+    json_data['last_keyboard_id'] = msg.message_id
+    await connection.set(f'fsm:{event.user.telegram_id}:{event.user.telegram_id}:data',
+                         value=json.dumps(json_data))
 
 
 async def on_error(exception: Exception) -> None:
