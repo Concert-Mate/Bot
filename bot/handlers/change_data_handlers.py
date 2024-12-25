@@ -517,7 +517,11 @@ async def add_one_playlist(message: Message, state: FSMContext, agent: UserServi
         if track_lists is not None:
             try:
                 track_lists_parsed = CachePlaylists.model_validate_json(track_lists)
-                track_lists_parsed.track_lists.append(track_list)
+                track_list_parsed = track_list
+                query_pos = track_list.url.find('?')
+                if query_pos != -1:
+                    track_list_parsed.url = track_list.url[0:query_pos]
+                track_lists_parsed.track_lists.append(track_list_parsed)
                 json_str = CachePlaylists(track_lists=track_lists_parsed.track_lists).model_dump_json()
                 await redis_storage.set(name=f'{user_id}:track-lists', value=json_str, ex=120)
                 bot_logger.debug(f'Update cache for {message.message_id} of'
